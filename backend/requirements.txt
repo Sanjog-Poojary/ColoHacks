@@ -10,3 +10,4 @@ pandas
 scikit-learn
 statsmodels
 rapidfuzz
+numpy

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Header
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Header, BackgroundTasks
 from deepgram import DeepgramClient
 from groq import Groq
 from app.lib.firebase_admin import db
 from app.lib.auth_middleware import get_current_user
+from app.lib.cache import invalidate_health_cache
 import os, json, logging, traceback, datetime
 from dotenv import load_dotenv
 
@@ -49,6 +50,7 @@ Expected JSON:
 @router.post('/ingest')
 async def ingest_audio(
     file: UploadFile = File(...), 
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     user: dict = Depends(get_current_user), 
     x_shop_id: str = Header(...)
 ):
@@ -130,6 +132,9 @@ async def ingest_audio(
         doc_ref_tuple = db.collection('ledger').add(entry_data)
         entry_id = doc_ref_tuple[1].id
         logger.info(f'Ledger entry saved: {entry_id}')
+
+        # 7. Invalidate health score cache in background
+        background_tasks.add_task(invalidate_health_cache, x_shop_id)
 
         return {'id': entry_id, 'transcript': transcript, 'ledger_entry': ledger_entry}
 

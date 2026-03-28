@@ -3,12 +3,14 @@ import VoiceRecorder from './components/VoiceRecorder';
 import LedgerCard from './components/LedgerCard';
 import LedgerList from './components/LedgerList';
 import BusinessInsights from './components/BusinessInsights';
+import FinancialHealth from './components/FinancialHealth';
+import { MiniScoreArc } from './components/FinancialHealth';
 import OnboardingModal from './components/OnboardingModal';
 import ClarificationDialog from './components/ClarificationDialog';
 import Login from './components/Login';
 import ShopSwitcher from './components/ShopSwitcher';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutList, Mic2, Sparkles, LogOut, WifiOff, RefreshCw, X } from 'lucide-react';
+import { LayoutList, Mic2, Sparkles, HeartPulse, LogOut, WifiOff, RefreshCw, X } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { auth } from './lib/firebaseClient';
 import api from './lib/api';
@@ -94,7 +96,9 @@ function App() {
   const [currentEntry, setCurrentEntry] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [insightsData, setInsightsData] = useState<any>(null);
-  const [view, setView] = useState<'record' | 'history' | 'insights'>('record');
+  const [view, setView] = useState<'record' | 'history' | 'insights' | 'health'>('record');
+  const [healthData, setHealthData] = useState<any>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [editingShop, setEditingShop] = useState<any>(null);
@@ -155,6 +159,16 @@ function App() {
       console.error('Fetch failed', e);
     }
   };
+
+  // Lazy-load health score for home widget (non-blocking)
+  useEffect(() => {
+    if (user && activeShopId && !healthData && !healthLoading) {
+      setHealthLoading(true);
+      api.get('/health-score').then(res => {
+        setHealthData(res.data);
+      }).catch(() => {}).finally(() => setHealthLoading(false));
+    }
+  }, [user, activeShopId]);
 
   // Scan for pending flags on startup or history update
   useEffect(() => {
@@ -265,6 +279,7 @@ function App() {
               <NavTab active={view === 'record'} onClick={() => setView('record')} icon={<Mic2 size={18} />} label='Record' />
               <NavTab active={view === 'history'} onClick={() => setView('history')} icon={<LayoutList size={18} />} label='History' />
               <NavTab active={view === 'insights'} onClick={() => setView('insights')} icon={<Sparkles size={18} />} label='Insights' />
+              <NavTab active={view === 'health'} onClick={() => setView('health')} icon={<HeartPulse size={18} />} label='Health' />
             </div>
 
             <button 
@@ -281,7 +296,7 @@ function App() {
       {/* Bottom Navigation for Mobile */}
       <nav className='md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-[#FFFFF0]/90 backdrop-blur-2xl border-t border-[#008080]/10 pb-safe-area'>
         <div className='flex items-center justify-around h-20 px-4'>
-          <MobileNavTab active={view === 'history'} onClick={() => setView('history')} icon={<LayoutList size={22} />} label='History' />
+          <MobileNavTab active={view === 'history'} onClick={() => setView('history')} icon={<LayoutList size={20} />} label='History' />
           
           <div className='relative -top-6'>
             <button 
@@ -296,7 +311,8 @@ function App() {
             </button>
           </div>
 
-          <MobileNavTab active={view === 'insights'} onClick={() => setView('insights')} icon={<Sparkles size={22} />} label='Insights' />
+          <MobileNavTab active={view === 'insights'} onClick={() => setView('insights')} icon={<Sparkles size={20} />} label='Insights' />
+          <MobileNavTab active={view === 'health'} onClick={() => setView('health')} icon={<HeartPulse size={20} />} label='Health' />
         </div>
       </nav>
 
@@ -325,6 +341,36 @@ function App() {
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
                 className='flex flex-col items-center gap-10 w-full'
               >
+                {/* Health Widget */}
+                {healthData && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                    className='w-full max-w-md bg-white border border-slate-100 px-5 py-4 rounded-2xl shadow-lg flex items-center justify-between gap-4 cursor-pointer hover:shadow-xl transition-shadow'
+                    onClick={() => setView('health')}
+                  >
+                    <div>
+                      <p className='text-[9px] text-slate-400 font-black uppercase tracking-widest'>Financial Health</p>
+                      <div className='flex items-center gap-2 mt-1'>
+                        <span className='text-2xl font-black text-[#333333]'>{healthData.score}</span>
+                        <span className='text-xs font-bold text-slate-400'>/100</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${
+                          healthData.score >= 80 ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                          healthData.score >= 65 ? 'bg-[#008080]/10 text-[#008080] border-[#008080]/20' :
+                          healthData.score >= 45 ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                          'bg-rose-50 text-rose-500 border-rose-200'
+                        }`}>{healthData.tier}</span>
+                      </div>
+                    </div>
+                    <div className='flex items-center gap-3'>
+                      <MiniScoreArc score={healthData.score} />
+                      <span className='text-[10px] text-[#008080] font-bold'>View details →</span>
+                    </div>
+                  </motion.div>
+                )}
+                {healthLoading && !healthData && (
+                  <div className='w-full max-w-md h-16 bg-slate-50 rounded-2xl animate-pulse' />
+                )}
+
                 <VoiceRecorder 
                   activeShopId={activeShopId}
                   onResult={(res) => { 
@@ -336,7 +382,8 @@ function App() {
                       setIsLoading(false);
                       return;
                     }
-                    setCurrentEntry(res); 
+                    setCurrentEntry(res);
+                    setHealthData(null); // bust widget cache on new entry
                     fetchData(); 
                   }} 
                   onStart={() => { setCurrentEntry(null); setIsLoading(true); }}
@@ -369,13 +416,21 @@ function App() {
                   onRefresh={fetchData}
                 />
               </motion.div>
-            ) : (
+            ) : view === 'insights' ? (
               <motion.div 
                 key='insights-view'
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
                 className='w-full flex justify-center'
               >
                 <BusinessInsights data={insightsData} title={activeShopType} />
+              </motion.div>
+            ) : (
+              <motion.div 
+                key='health-view'
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+                className='w-full flex justify-center'
+              >
+                <FinancialHealth shopName={activeShopName} shopType={activeShopType} />
               </motion.div>
             )}
           </AnimatePresence>
