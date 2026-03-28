@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.gemini/
+*.log
+.DS_Store
+backend/__pycache__/
+backend/venv/
+frontend/.vite/
+frontend/package-lock.json

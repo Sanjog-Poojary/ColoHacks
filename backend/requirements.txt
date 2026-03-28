@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+deepgram-sdk
+groq
+pydantic
+python-dotenv
+aiofiles
+python-multipart
