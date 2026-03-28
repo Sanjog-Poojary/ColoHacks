@@ -1,77 +1,92 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import api from '../lib/api';
-import { Mic, Square, Loader2, Volume2 } from 'lucide-react';
+import { Mic, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function VoiceRecorder({ onResult, onStart }: { onResult: (data: any) => void; onStart?: () => void }) {
+export default function VoiceRecorder({ onResult, onStart }: { onResult: (res: any) => void; onStart: () => void }) {
   const [isRecording, setIsRecording] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
 
   const startRecording = async () => {
+    onStart();
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = mediaRecorder;
-    audioChunksRef.current = [];
-    mediaRecorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
-    mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+    const recorder = new MediaRecorder(stream);
+    const chunks: Blob[] = [];
+
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
       const formData = new FormData();
-      formData.append('file', audioBlob);
-      setLoading(true);
+      formData.append('file', blob);
       try {
-        const { data } = await api.post('/ingest', formData);
-        onResult(data);
-      } catch (err) { console.error(err); } finally { setLoading(false); }
+        const res = await api.post('/ingest', formData);
+        onResult(res.data);
+      } catch (err) { console.error('Upload failed', err); }
     };
-    mediaRecorder.start();
+
+    recorder.start();
+    setMediaRecorder(recorder);
     setIsRecording(true);
-    onStart?.();
   };
 
   const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
+    mediaRecorder?.stop();
     setIsRecording(false);
   };
 
   return (
-    <div className='flex flex-col items-center gap-6'>
+    <div className='flex flex-col items-center gap-12'>
       <div className='relative'>
         <AnimatePresence>
           {isRecording && (
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.1, 0.3] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className='absolute -inset-4 bg-blue-400 rounded-full blur-xl'
-            />
+            <>
+              <motion.div
+                initial={{ scale: 1, opacity: 0 }}
+                animate={{ scale: 2.2, opacity: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                className='absolute inset-0 bg-[#008080]/30 rounded-full blur-2xl'
+              />
+              <motion.div
+                initial={{ scale: 1, opacity: 0 }}
+                animate={{ scale: 1.8, opacity: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: 0.5 }}
+                className='absolute inset-0 bg-[#20B2AA]/20 rounded-full blur-xl'
+              />
+            </>
           )}
         </AnimatePresence>
+
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={isRecording ? stopRecording : startRecording}
-          className={'relative w-28 h-28 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ' + (isRecording ? 'bg-red-500 shadow-red-200' : 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-200')}
+          className={`relative z-10 w-44 h-44 rounded-full flex flex-col items-center justify-center gap-3 transition-all duration-500 shadow-2xl ${
+            isRecording 
+              ? 'bg-red-500 shadow-red-500/40 ring-[12px] ring-red-500/10' 
+              : 'bg-[#008080] shadow-[#008080]/40 hover:bg-[#006666] ring-[12px] ring-[#008080]/10'
+          }`}
         >
-          {loading ? (
-            <Loader2 className='animate-spin text-white w-10 h-10' />
-          ) : isRecording ? (
-            <Square className='text-white w-10 h-10' />
+          {isRecording ? (
+            <>
+              <Square className='text-[#FFFFF0] fill-[#FFFFF0]' size={40} />
+              <span className='text-[#FFFFF0] text-xs font-black uppercase tracking-widest animate-pulse'>Stop Recording</span>
+            </>
           ) : (
-            <Mic className='text-white w-10 h-10' />
+            <>
+              <Mic className='text-[#FFFFF0]' size={48} />
+              <span className='text-[#FFFFF0] text-xs font-black uppercase tracking-widest'>Start Recording</span>
+            </>
           )}
         </motion.button>
       </div>
-      <div className='text-center'>
-        <motion.p
-          animate={isRecording ? { opacity: [1, 0.5, 1] } : { opacity: 1 }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className='text-slate-600 font-medium tracking-wide'
-        >
-          {isRecording ? 'Listening to your narration...' : loading ? 'Analyzing your day...' : 'Tap top-tier recording to start'}
-        </motion.p>
-        {isRecording && <div className='mt-2 flex gap-1 justify-center'><div className='w-1 h-4 bg-red-400 animate-pulse'/><div className='w-1 h-6 bg-red-400 animate-pulse delay-75'/><div className='w-1 h-4 bg-red-400 animate-pulse delay-150'/></div>}
+
+      <div className='text-center space-y-3'>
+        <h2 className='text-3xl font-black text-[#333333] tracking-tight'>Record Your Sales</h2>
+        <p className='text-[#333333]/60 font-medium max-w-sm mx-auto leading-relaxed'>
+          Simply speak your sales data (e.g. "Sold 2 chai for 40 rupees") and let AI do the rest.
+        </p>
       </div>
     </div>
   );

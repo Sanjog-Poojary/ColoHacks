@@ -1,1 +1,15 @@
 @import 'tailwindcss';
+
+@theme {
+  --color-teal-primary: #008080;
+  --color-teal-secondary: #20B2AA;
+  --color-ivory: #FFFFF0;
+  --color-ivory-surface: #FDF5E6;
+  --color-charcoal: #333333;
+}
+
+body {
+  background-color: var(--color-ivory);
+  color: var(--color-charcoal);
+  font-family: 'Inter', sans-serif;
+}

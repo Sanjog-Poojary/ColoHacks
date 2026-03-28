@@ -38,3 +38,31 @@ async def list_shops(user: dict = Depends(get_current_user)):
         return [doc.to_dict() for doc in docs]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete('/shops/{shop_id}')
+async def delete_shop(shop_id: str, user: dict = Depends(get_current_user)):
+    uid = user['uid']
+    try:
+        shop_ref = db.collection('shops').document(shop_id)
+        shop_doc = shop_ref.get()
+        if not shop_doc.exists:
+            raise HTTPException(status_code=404, detail='Shop not found')
+        
+        if shop_doc.to_dict().get('owner') != uid:
+            raise HTTPException(status_code=403, detail='Not authorized to delete this shop')
+        
+        # Delete shop doc
+        shop_ref.delete()
+        
+        # Remove from user's shops list
+        user_ref = db.collection('users').document(uid)
+        user_doc = user_ref.get()
+        if user_doc.exists:
+            shops = user_doc.to_dict().get('shops', [])
+            if shop_id in shops:
+                shops.remove(shop_id)
+                user_ref.update({'shops': shops})
+        
+        return {'status': 'success'}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

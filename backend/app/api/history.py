@@ -72,20 +72,37 @@ async def delete_entry(entry_id: str, user: dict = Depends(get_current_user)):
 
 
 @router.post('/translate')
-async def translate_text(req: TranslateRequest):
+async def translate_text(req: TranslateRequest, user: dict = Depends(get_current_user)):
     try:
+        if not req.text.strip():
+            return {'translated': ''}
+            
         completion = groq_client.chat.completions.create(
             model='llama-3.3-70b-versatile',
             messages=[{
-                'role': 'user',
+                'role': 'system',
                 'content': (
-                    'Translate the following Hinglish/Hindi text to clear English. '
-                    'Return ONLY the translated text, no explanations.\n\n'
-                    f'Text: {req.text}'
-                ),
+                    'You are an expert financial translator for VyapaarVaani, '
+                    'a business ledger app for small Indian shops. '
+                    'Translate Hinglish/Hindi narration into professional English business entries.\n\n'
+                    'STRICT RULES:\n'
+                    '1. NEVER combine disparate numbers (e.g., "200 Mangoes, sold for 40" must NOT become "240 mangoes").\n'
+                    '2. Distinguish between Item Quantity and Currency Amount.\n'
+                    '3. Contextualize "Jama" as "Credit" and "Udhaar/Naave" as "Debit".\n'
+                    '4. Return ONLY the translated English sentence. No intro, no "Sure," no explanations.'
+                )
+            }, {
+                'role': 'user',
+                'content': f'Translate: {req.text}'
             }],
         )
         translated = completion.choices[0].message.content.strip()
+        # Remove common model conversational prefixes if they persist
+        prefixes = ['translation:', 'here is the translation:', 'Sure, ', 'translated:']
+        for p in prefixes:
+            if translated.lower().startswith(p):
+                translated = translated[len(p):].strip()
+        
         return {'translated': translated}
     except Exception as e:
         logger.error(f'Translate error: {str(e)}', exc_info=True)
