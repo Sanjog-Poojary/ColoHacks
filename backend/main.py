@@ -1,4 +1,4 @@
 from fastapi import FastAPI
 app = FastAPI()
 @app.get('/')
-def read_root(): return {'message': 'VoiceTrace API'}
+def read_root(): return {'message': 'VyapaarVaani API'}

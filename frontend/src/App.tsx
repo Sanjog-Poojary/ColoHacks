@@ -3,16 +3,19 @@ import VoiceRecorder from './components/VoiceRecorder';
 import LedgerCard from './components/LedgerCard';
 import LedgerList from './components/LedgerList';
 import BusinessInsights from './components/BusinessInsights';
+import OnboardingModal from './components/OnboardingModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { LayoutList, Mic2, Sparkles, BarChart3 } from 'lucide-react';
+import { LayoutList, Mic2, Sparkles, User, MapPin } from 'lucide-react';
 
 function App() {
   const [currentEntry, setCurrentEntry] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [insightsData, setInsightsData] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [view, setView] = useState<'record' | 'history' | 'insights'>('record');
   const [isLoading, setIsLoading] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -27,21 +30,39 @@ function App() {
     } catch (e) { console.error('Fetch failed', e); }
   };
 
-  useEffect(() => { fetchData(); }, [view]);
+  const fetchProfile = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/api/profile');
+      if (res.data) setProfile(res.data);
+      else setShowOnboarding(true);
+    } catch (e) { setShowOnboarding(true); }
+  };
+
+  useEffect(() => { fetchProfile(); fetchData(); }, [view]);
 
   return (
     <div className='min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500/30'>
+      <OnboardingModal isOpen={showOnboarding} onComplete={(p) => { setProfile(p); setShowOnboarding(false); }} />
+      
       {/* Navbar */}
-      <nav className='fixed top-0 w-full z-101 bg-slate-900/50 backdrop-blur-xl border-b border-white/5'>
-        <div className='max-w-7xl mx-auto px-6 h-24 flex items-center justify-between'>
-          <div className='flex items-center gap-3'>
-            <div className='w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20'>
-              <Mic2 className='text-white' size={24} />
+      <nav className='fixed top-0 w-full z-[100] bg-slate-900/50 backdrop-blur-xl border-b border-white/5'>
+        <div className='max-w-7xl mx-auto px-6 h-28 flex items-center justify-between'>
+          <div className='flex items-center gap-4'>
+            <div className='w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20'>
+              <Mic2 className='text-white' size={28} />
             </div>
-            <span className='text-2xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400'>VoiceTrace</span>
+            <div>
+              <span className='text-2xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400'>VyapaarVaani</span>
+              {profile && (
+                <div className='flex items-center gap-4 text-[10px] uppercase tracking-widest text-slate-500 font-bold mt-1'>
+                  <span className='flex items-center gap-1'><User size={10}/> {profile.name}</span>
+                  <span className='flex items-center gap-1'><MapPin size={10}/> {profile.city}</span>
+                </div>
+              )}
+            </div>
           </div>
           
-          <div className='bg-slate-800/50 p-1.5 rounded-[1.5rem] flex gap-1 border border-white/10'>
+          <div className='bg-slate-800/50 p-1.5 rounded-3xl flex gap-1 border border-white/10'>
             <NavTab active={view === 'record'} onClick={() => setView('record')} icon={<Mic2 size={18} />} label='Record' />
             <NavTab active={view === 'history'} onClick={() => setView('history')} icon={<LayoutList size={18} />} label='History' />
             <NavTab active={view === 'insights'} onClick={() => setView('insights')} icon={<Sparkles size={18} />} label='Insights' />
@@ -49,7 +70,7 @@ function App() {
         </div>
       </nav>
 
-      <main className='pt-40 pb-20 px-6 flex flex-col items-center gap-12'>
+      <main className='pt-48 pb-20 px-6 flex flex-col items-center gap-12'>
         <AnimatePresence mode='wait'>
           {view === 'record' ? (
             <motion.div 
@@ -70,7 +91,7 @@ function App() {
               )}
               
               {currentEntry && (
-                <LedgerCard data={currentEntry} onDelete={(id) => { setCurrentEntry(null); fetchData(); }} />
+                <LedgerCard data={currentEntry} onDelete={() => { setCurrentEntry(null); fetchData(); }} />
               )}
             </motion.div>
           ) : view === 'history' ? (
@@ -84,7 +105,7 @@ function App() {
                 onSelect={(entry) => {
                   setCurrentEntry(entry);
                   setView('record');
-                }}
+                }} 
                 onRefresh={fetchData}
               />
             </motion.div>
@@ -107,7 +128,7 @@ function NavTab({ active, onClick, icon, label }: any) {
   return (
     <button 
       onClick={onClick} 
-      className={'px-6 py-2.5 rounded-xl flex items-center gap-2 transition-all font-bold ' + (active ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white')}
+      className={'px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold ' + (active ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white')}
     >
       {icon} {label}
     </button>

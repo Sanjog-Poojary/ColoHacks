@@ -1,28 +1,42 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Sparkles, TrendingUp, ShoppingBag, Lightbulb } from 'lucide-react';
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { Sparkles, TrendingUp, ShoppingBag, Lightbulb, AlertCircle } from 'lucide-react';
 
 export default function BusinessInsights({ data }: { data: any }) {
   if (!data) return null;
 
-  // Default values to prevent undefined crashes
   const chartData = data.chart_data || [];
   const insights = data.insights || { bestseller: '-', slow_item: '-', suggestion: 'Loading...' };
   const weeklyTotal = data.weekly_total || 0;
+  const alert = data.alert;
 
   return (
     <div className='w-full max-w-5xl space-y-10'>
       <div className='flex items-center gap-3 mb-2'>
         <Sparkles className='text-blue-400' />
-        <h2 className='text-3xl font-black text-white tracking-tight'>Business Insights</h2>
+        <h2 className='text-3xl font-black text-white tracking-tight font-sans'>Business Insights</h2>
       </div>
+
+      {alert && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          className='bg-amber-500/10 border border-amber-500/20 p-6 rounded-[2rem] flex items-center gap-4 text-amber-200'
+        >
+          <div className='bg-amber-500 p-3 rounded-2xl shadow-lg shadow-amber-500/20'>
+            <AlertCircle size={24} className='text-white' />
+          </div>
+          <div>
+            <p className='text-sm font-bold uppercase tracking-widest opacity-60 mb-1'>Today\'s Alert</p>
+            <p className='text-xl font-bold'>{alert}</p>
+          </div>
+        </motion.div>
+      )}
 
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
         {/* Main Chart Card */}
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className='lg:col-span-2 bg-slate-900/40 backdrop-blur-2xl border border-white/10 rounded-[3rem] p-10 shadow-2xl'
         >
           <div className='flex justify-between items-start mb-10'>
@@ -31,11 +45,10 @@ export default function BusinessInsights({ data }: { data: any }) {
               <p className='text-4xl font-black text-white mt-1'>?{weeklyTotal}</p>
             </div>
             <div className='bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/20'>
-              <span className='text-emerald-400 text-sm font-bold'>Active Trend</span>
+              <span className='text-emerald-400 text-sm font-bold'>Verified Insight</span>
             </div>
           </div>
 
-          {/* Fix: Set fixed height on parent and use minWidth/minHeight to solve Recharts warning */}
           <div className='h-[300px] w-full min-h-[300px]'>
             {chartData.length > 0 ? (
               <ResponsiveContainer width='100%' height='100%' minWidth={0} minHeight={0}>
@@ -69,7 +82,7 @@ export default function BusinessInsights({ data }: { data: any }) {
             className='bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-[2.5rem] shadow-xl text-white'
           >
             <Lightbulb className='text-blue-100 mb-4' />
-            <h4 className='text-blue-100 font-bold text-sm uppercase tracking-wider mb-2'>AI Voice of Wisdom</h4>
+            <h4 className='text-blue-100 font-bold text-sm uppercase tracking-wider mb-2'>VyapaarVaani AI</h4>
             <p className='text-xl font-bold leading-tight'>{insights.suggestion}</p>
           </motion.div>
 
