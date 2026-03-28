@@ -1,72 +1,98 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import VoiceRecorder from './components/VoiceRecorder';
 import LedgerCard from './components/LedgerCard';
+import LedgerList from './components/LedgerList';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutList, Settings, PieChart, FileDown } from 'lucide-react';
+import axios from 'axios';
+import { LayoutList, Mic2 } from 'lucide-react';
 
 function App() {
-  const [result, setResult] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState('record');
+  const [currentEntry, setCurrentEntry] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [view, setView] = useState<'record' | 'history'>('record');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/api/ledger');
+      setHistory(res.data);
+    } catch (e) { console.error('History fetch failed', e); }
+  };
+
+  useEffect(() => { if (view === 'history') fetchHistory(); }, [view]);
 
   return (
-    <div className='min-h-screen bg-[#0F172A] text-slate-200 font-sans selection:bg-blue-500/30 overflow-x-hidden'>
-      {/* Background Decor */}
-      <div className='absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none'>
-        <div className='absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]' />
-        <div className='absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px]' />
-      </div>
-
-      <nav className='relative z-10 p-6 flex justify-between items-center max-w-5xl mx-auto'>
-        <h1 className='text-3xl font-black bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent tracking-tighter'>VoiceTrace</h1>
-        <div className='flex gap-2 bg-slate-800/40 p-1.5 rounded-2xl border border-slate-700/50 backdrop-blur-xl'>
-          {['record', 'ledger', 'insights'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ' + (activeTab === tab ? 'bg-blue-500 text-white shadow-lg' : 'hover:bg-slate-700/50 text-slate-400')}
+    <div className='min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500/30'>
+      {/* Navbar */}
+      <nav className='fixed top-0 w-full z-50 bg-slate-900/50 backdrop-blur-xl border-b border-white/5'>
+        <div className='max-w-7xl mx-auto px-6 h-20 flex items-center justify-between'>
+          <div className='flex items-center gap-2'>
+            <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20'>
+              <Mic2 className='text-white' size={24} />
+            </div>
+            <span className='text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400'>VoiceTrace</span>
+          </div>
+          
+          <div className='bg-slate-800/50 p-1 rounded-2xl flex gap-1 border border-white/5'>
+            <button 
+              onClick={() => setView('record')} 
+              className={'px-6 py-2 rounded-xl flex items-center gap-2 transition-all ' + (view === 'record' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white')}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              <Mic2 size={18} /> Record
             </button>
-          ))}
+            <button 
+              onClick={() => setView('history')} 
+              className={'px-6 py-2 rounded-xl flex items-center gap-2 transition-all ' + (view === 'history' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white')}
+            >
+              <LayoutList size={18} /> history
+            </button>
+          </div>
         </div>
       </nav>
 
-      <main className='relative z-10 max-w-5xl mx-auto px-6 py-12 flex flex-col items-center gap-16'>
+      <main className='pt-32 pb-20 px-6 flex flex-col items-center gap-12'>
         <AnimatePresence mode='wait'>
-          {activeTab === 'record' && (
-            <motion.section
-              key='record'
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className='w-full flex flex-col items-center gap-12'
+          {view === 'record' ? (
+            <motion.div 
+              key='record-view'
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+              className='flex flex-col items-center gap-10 w-full'
             >
-              <VoiceRecorder onResult={(data) => { setResult(data); setActiveTab('ledger'); }} />
-              <div className='grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl'>
-                {[ { icon: LayoutList, title: 'Smart Ledger', desc: 'Auto-extracted from your voice' }, { icon: PieChart, title: 'Weekly Patterns', desc: 'Identify your best selling items' }, { icon: FileDown, title: 'Export PDF', desc: 'Loan-ready income statements' } ].map((f, i) => (
-                  <div key={i} className='p-6 rounded-3xl bg-slate-800/30 border border-slate-700/30 backdrop-blur-sm' >
-                    <f.icon className='text-blue-400 mb-4 h-8 w-8' />
-                    <h3 className='font-bold text-lg text-white'>{f.title}</h3>
-                    <p className='text-slate-400 text-sm mt-2'>{f.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.section>
-          )}
-
-          {activeTab === 'ledger' && result && (
-            <motion.section
-              key='ledger'
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className='w-full flex flex-col items-center'
+              <VoiceRecorder 
+                onResult={(res) => { setCurrentEntry(res); fetchHistory(); }} 
+                onStart={() => { setCurrentEntry(null); setIsLoading(true); }}
+              />
+              
+              {isLoading && !currentEntry && (
+                <div className='flex items-center gap-3 bg-blue-500/10 px-6 py-3 rounded-full border border-blue-500/20 animate-pulse'>
+                  <div className='w-2 h-2 bg-blue-400 rounded-full' />
+                  <span className='text-blue-400 font-bold'>Processing your voice...</span>
+                </div>
+              )}
+              
+              {currentEntry && (
+                <LedgerCard data={currentEntry} />
+              )}
+            </motion.div>
+          ) : (
+            <motion.div 
+              key='history-view'
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+              className='w-full max-w-4xl'
             >
-              <LedgerCard data={result} />
-            </motion.section>
+              <LedgerList 
+                history={history} 
+                onSelect={(entry) => {
+                  setCurrentEntry(entry);
+                  setView('record');
+                }} 
+              />
+            </motion.div>
           )}
         </AnimatePresence>
       </main>
     </div>
   );
 }
+
 export default App;
