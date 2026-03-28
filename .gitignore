@@ -4,9 +4,30 @@ dist/
 .gemini/
 *.log
 .DS_Store
-backend/__pycache__/
+
+# Python cache — at any depth
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
 backend/venv/
+backend/.venv/
+
+# Sensitive credentials
+backend/serviceAccountKey.json
+
+# Vite build cache
 frontend/.vite/
 frontend/package-lock.json
 
-backend/serviceAccountKey.json
+# Debug / diagnostic artifacts (auto-generated at runtime, never commit)
+backend/crash.txt
+backend/test_ingest.py
+backend/debug_dg.py
+backend/silent.wav
+backend/clean_stock_db.py
+backend/seed_stock.py
+backend/clear_cache.py
