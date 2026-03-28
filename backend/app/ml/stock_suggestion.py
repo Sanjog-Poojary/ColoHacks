@@ -6,6 +6,39 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Canonical unit map — keyed by lowercase item name fragments
+# The engine picks the FIRST key that is a substring of the canonical item name.
+KNOWN_UNITS: dict[str, str] = {
+    "apple": "kg",
+    "mango": "kg",
+    "banana": "dozen",
+    "potato": "kg",
+    "onion": "kg",
+    "tomato": "kg",
+    "milk": "litre",
+    "bread": "piece",
+    "egg": "piece",
+    "chai": "cup",
+    "samosa": "piece",
+    "vada pav": "piece",
+    "chair": "piece",
+    "stool": "piece",
+    "table": "piece",
+    "chowky": "piece",
+    "sofa": "piece",
+}
+
+def _resolve_unit(item_name: str, ledger_unit: str | None) -> str:
+    """Returns the best unit for an item — prefers the unit stored in the ledger,
+    falls back to the KNOWN_UNITS map, then defaults to 'kg'."""
+    if ledger_unit and ledger_unit.strip():
+        return ledger_unit.strip()
+    lower = item_name.lower()
+    for key, unit in KNOWN_UNITS.items():
+        if key in lower:
+            return unit
+    return "kg"  # sensible default for a market vendor
+
 def compute_stock_suggestions(df: pd.DataFrame) -> list[dict]:
     """
     Fits ExponentialSmoothing per item and forecasts 1 step ahead.
@@ -16,7 +49,8 @@ def compute_stock_suggestions(df: pd.DataFrame) -> list[dict]:
         return []
         
     known_items = []
-    daily_qty = {} # Mapping of canonical name to list of daily quantities
+    daily_qty: dict[str, list] = {}  # canonical name -> daily quantities
+    item_units: dict[str, str] = {}  # canonical name -> best known unit
     
     # Keyword scanning in raw transcripts for stock-out detection
     stock_out_keywords = ["khatam", "ran out", "stock nahi", "nahi tha", "sold out", "finish hogaya"]
@@ -27,15 +61,20 @@ def compute_stock_suggestions(df: pd.DataFrame) -> list[dict]:
     # a. Build Time Series per Item
     for date in dates:
         day_entries = df[df['date'].dt.date == date]
-        day_items = {} # Canonical name to qty for this day
+        day_items: dict[str, float] = {}
         
         for index, row in day_entries.iterrows():
             for item in row['items_sold']:
                 name = item.get('name', 'Unknown')
                 qty = float(item.get('qty', 0))
+                ledger_unit = item.get('unit', None)  # unit stored in ledger entry
                 
                 canonical = normalize_item_name(name, known_items)
                 day_items[canonical] = day_items.get(canonical, 0) + qty
+                
+                # Persist unit — first seen wins
+                if canonical not in item_units:
+                    item_units[canonical] = _resolve_unit(canonical, ledger_unit)
                 
         # Update daily_qty for all known items
         for canonical in known_items:
@@ -93,7 +132,8 @@ def compute_stock_suggestions(df: pd.DataFrame) -> list[dict]:
             "item": item,
             "suggested_qty": int(suggested_qty),
             "reason": reason,
-            "has_buffer": has_stockout_issue
+            "has_buffer": has_stockout_issue,
+            "unit": item_units.get(item, _resolve_unit(item, None))
         })
         
     return suggestions

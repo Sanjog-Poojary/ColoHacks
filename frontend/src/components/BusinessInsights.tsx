@@ -256,7 +256,7 @@ export default function BusinessInsights({ data, title }: { data: any; title?: s
                   </div>
                   <div className='text-right'>
                     <p className='text-3xl font-black leading-none'>{s.suggested_qty}</p>
-                    <p className='text-[8px] font-black uppercase tracking-tighter opacity-70'>units</p>
+                    <p className='text-[8px] font-black uppercase tracking-tighter opacity-70'>{s.unit || 'kg'}</p>
                   </div>
                 </div>
               )) : (
