@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Mic, Square, Loader2, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function VoiceRecorder({ onResult }: { onResult: (data: any) => void }) {
+export default function VoiceRecorder({ onResult, onStart }: { onResult: (data: any) => void; onStart?: () => void }) {
   const [isRecording, setIsRecording] = useState(false);
   const [loading, setLoading] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -27,6 +27,7 @@ export default function VoiceRecorder({ onResult }: { onResult: (data: any) => v
     };
     mediaRecorder.start();
     setIsRecording(true);
+    onStart?.();
   };
 
   const stopRecording = () => {

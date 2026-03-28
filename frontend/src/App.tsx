@@ -70,7 +70,7 @@ function App() {
               )}
               
               {currentEntry && (
-                <LedgerCard data={currentEntry} />
+                <LedgerCard data={currentEntry} onDelete={(id) => { setCurrentEntry(null); fetchData(); }} />
               )}
             </motion.div>
           ) : view === 'history' ? (
@@ -84,7 +84,8 @@ function App() {
                 onSelect={(entry) => {
                   setCurrentEntry(entry);
                   setView('record');
-                }} 
+                }}
+                onRefresh={fetchData}
               />
             </motion.div>
           ) : (

@@ -1,10 +1,19 @@
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 from app.lib.firebase_admin import db
 from google.cloud.firestore_v1 import query as firestore_query
-import logging
+from groq import Groq
+import os, json, logging
+from dotenv import load_dotenv
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 router = APIRouter()
+groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+
+
+class TranslateRequest(BaseModel):
+    text: str
 
 
 @router.get('/ledger')
@@ -23,6 +32,43 @@ async def get_ledger():
         return history
     except Exception as e:
         logger.error(f'History error: {str(e)}', exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete('/ledger/{entry_id}')
+async def delete_entry(entry_id: str):
+    try:
+        doc_ref = db.collection('ledger').document(entry_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail='Entry not found')
+        doc_ref.delete()
+        return {'message': 'Entry deleted successfully'}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f'Delete error: {str(e)}', exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post('/translate')
+async def translate_text(req: TranslateRequest):
+    try:
+        completion = groq_client.chat.completions.create(
+            model='llama-3.3-70b-versatile',
+            messages=[{
+                'role': 'user',
+                'content': (
+                    'Translate the following Hinglish/Hindi text to clear English. '
+                    'Return ONLY the translated text, no explanations.\n\n'
+                    f'Text: {req.text}'
+                ),
+            }],
+        )
+        translated = completion.choices[0].message.content.strip()
+        return {'translated': translated}
+    except Exception as e:
+        logger.error(f'Translate error: {str(e)}', exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
