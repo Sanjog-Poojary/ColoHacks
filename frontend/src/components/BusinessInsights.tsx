@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Sparkles, TrendingUp, ShoppingBag, Lightbulb, AlertCircle } from 'lucide-react';
@@ -10,6 +9,14 @@ export default function BusinessInsights({ data }: { data: any }) {
   const insights = data.insights || { bestseller: '-', slow_item: '-', suggestion: 'Loading...' };
   const weeklyTotal = data.weekly_total || 0;
   const alert = data.alert;
+
+  const formatAIVal = (val: any) => {
+    if (typeof val === 'string') return val;
+    if (typeof val === 'object' && val !== null) {
+      return val.name || val.item || JSON.stringify(val);
+    }
+    return String(val || '-');
+  };
 
   return (
     <div className='w-full max-w-5xl space-y-10'>
@@ -27,7 +34,7 @@ export default function BusinessInsights({ data }: { data: any }) {
             <AlertCircle size={24} className='text-white' />
           </div>
           <div>
-            <p className='text-sm font-bold uppercase tracking-widest opacity-60 mb-1'>Today\'s Alert</p>
+            <p className='text-sm font-bold uppercase tracking-widest opacity-60 mb-1'>Today's Alert</p>
             <p className='text-xl font-bold'>{alert}</p>
           </div>
         </motion.div>
@@ -42,16 +49,16 @@ export default function BusinessInsights({ data }: { data: any }) {
           <div className='flex justify-between items-start mb-10'>
             <div>
               <h3 className='text-slate-400 font-bold uppercase tracking-widest text-xs'>Weekly Earnings Trend</h3>
-              <p className='text-4xl font-black text-white mt-1'>?{weeklyTotal}</p>
+              <p className='text-4xl font-black text-white mt-1'>₹{weeklyTotal}</p>
             </div>
             <div className='bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/20'>
               <span className='text-emerald-400 text-sm font-bold'>Verified Insight</span>
             </div>
           </div>
 
-          <div className='h-[300px] w-full min-h-[300px]'>
+          <div style={{ height: 300, width: '100%', minHeight: 300 }}>
             {chartData.length > 0 ? (
-              <ResponsiveContainer width='100%' height='100%' minWidth={0} minHeight={0}>
+              <ResponsiveContainer width="99%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id='colorEarnings' x1='0' y1='0' x2='0' y2='1'>
@@ -92,7 +99,7 @@ export default function BusinessInsights({ data }: { data: any }) {
           >
             <ShoppingBag className='text-blue-400 mb-4' />
             <h4 className='text-slate-500 font-bold text-sm uppercase tracking-wider mb-1'>Bestseller</h4>
-            <p className='text-2xl font-black text-white'>{insights.bestseller}</p>
+            <p className='text-2xl font-black text-white'>{formatAIVal(insights.bestseller)}</p>
           </motion.div>
 
           <motion.div 
@@ -101,7 +108,7 @@ export default function BusinessInsights({ data }: { data: any }) {
           >
             <TrendingUp className='text-amber-400 mb-4' />
             <h4 className='text-slate-500 font-bold text-sm uppercase tracking-wider mb-1'>Slow Item</h4>
-            <p className='text-2xl font-black text-white'>{insights.slow_item}</p>
+            <p className='text-2xl font-black text-white'>{formatAIVal(insights.slow_item)}</p>
           </motion.div>
         </div>
       </div>

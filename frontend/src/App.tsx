@@ -7,10 +7,10 @@ import OnboardingModal from './components/OnboardingModal';
 import Login from './components/Login';
 import ShopSwitcher from './components/ShopSwitcher';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
 import { LayoutList, Mic2, Sparkles, LogOut } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { auth } from './lib/firebaseClient';
+import api from './lib/api';
 
 function App() {
   const { user, loading: authLoading } = useAuth();
@@ -22,31 +22,16 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Setup Axios Interceptors
-  useEffect(() => {
-    if (!user) return;
-
-    const interceptor = axios.interceptors.request.use(async (config) => {
-      const token = await user.getIdToken();
-      config.headers.Authorization = `Bearer ${token}`;
-      if (activeShopId) {
-        config.headers['X-Shop-Id'] = activeShopId;
-      }
-      return config;
-    });
-
-    return () => axios.interceptors.request.eject(interceptor);
-  }, [user, activeShopId]);
 
   const fetchData = async () => {
     if (!user || !activeShopId) return;
     try {
       if (view === 'history') {
-        const res = await axios.get('http://localhost:8000/api/ledger');
+        const res = await api.get(`/ledger?shop_id=${activeShopId}`);
         setHistory(res.data);
       }
       if (view === 'insights') {
-        const res = await axios.get('http://localhost:8000/api/insights');
+        const res = await api.get(`/insights?shop_id=${activeShopId}`);
         setInsightsData(res.data);
       }
     } catch (e) {

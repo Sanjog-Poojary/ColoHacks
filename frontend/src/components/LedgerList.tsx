@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { History, ArrowRight, Tag, Trash2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../lib/api';
 
 export default function LedgerList({ history, onSelect, onRefresh }: { history: any[]; onSelect: (entry: any) => void; onRefresh: () => void }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -11,7 +11,7 @@ export default function LedgerList({ history, onSelect, onRefresh }: { history: 
     if (deletingId === id) {
       // Second click = confirm
       try {
-        await axios.delete(`http://localhost:8000/api/ledger/${id}`);
+        await api.delete(`/ledger/${id}`);
         onRefresh();
       } catch (err) { console.error('Delete failed', err); }
       setDeletingId(null);

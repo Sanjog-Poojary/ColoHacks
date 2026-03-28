@@ -4,7 +4,7 @@ from app.lib.firebase_admin import db
 from google.cloud.firestore_v1 import query as firestore_query
 from app.lib.auth_middleware import get_current_user
 from groq import Groq
-import os, json, logging
+import os, json, logging, datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -21,18 +21,28 @@ class TranslateRequest(BaseModel):
 async def get_ledger(user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
     try:
         uid = user['uid']
+        seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
         docs = (
             db.collection('ledger')
             .where('shop_id', '==', x_shop_id)
-            .where('uid', '==', uid)
-            .order_by('createdAt', direction=firestore_query.Query.DESCENDING)
             .stream()
         )
         history = []
         for doc in docs:
             data = doc.to_dict()
+            
+            # Manual date filtering
+            dt_str = data.get('createdAt')
+            if not dt_str: continue
+            
+            dt = datetime.datetime.fromisoformat(dt_str)
+            if dt < seven_days_ago: continue
+            
             data['id'] = doc.id
             history.append(data)
+        
+        # Sort manually to avoid needing a Firestore composite index
+        history.sort(key=lambda x: x.get('createdAt', ''), reverse=True)
         return history
     except Exception as e:
         logger.error(f'History error: {str(e)}', exc_info=True)

@@ -16,14 +16,20 @@ async def get_insights(user: dict = Depends(get_current_user), x_shop_id: str = 
         docs = (
             db.collection('ledger')
             .where('shop_id', '==', x_shop_id)
-            .where('uid', '==', uid)
-            .where('createdAt', '>=', seven_days_ago.isoformat())
             .stream()
         )
         raw_data = []
         daily_earnings = {}
         for doc in docs:
             data = doc.to_dict()
+            
+            # Manual date filtering
+            dt_str = data.get('createdAt')
+            if not dt_str: continue
+            
+            dt = datetime.datetime.fromisoformat(dt_str)
+            if dt < seven_days_ago: continue
+            
             raw_data.append(data)
             dt = data.get('createdAt')
             if isinstance(dt, str): dt = datetime.datetime.fromisoformat(dt)

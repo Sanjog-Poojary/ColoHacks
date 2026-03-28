@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Store, ChevronDown, Plus, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+import api from '../lib/api';
 
 export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop }: { activeShopId: string | null; onSwitch: (id: string) => void; onAddShop: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -9,7 +9,7 @@ export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop }: { ac
 
   const fetchShops = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/api/shops');
+      const res = await api.get('/shops');
       setShops(res.data);
       if (!activeShopId && res.data.length > 0) {
         onSwitch(res.data[0].shop_id);

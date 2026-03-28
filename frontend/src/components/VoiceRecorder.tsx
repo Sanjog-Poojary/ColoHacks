@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { Mic, Square, Loader2, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -21,7 +21,7 @@ export default function VoiceRecorder({ onResult, onStart }: { onResult: (data: 
       formData.append('file', audioBlob);
       setLoading(true);
       try {
-        const { data } = await axios.post('http://localhost:8000/api/ingest', formData);
+        const { data } = await api.post('/ingest', formData);
         onResult(data);
       } catch (err) { console.error(err); } finally { setLoading(false); }
     };

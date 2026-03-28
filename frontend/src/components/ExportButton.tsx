@@ -1,11 +1,10 @@
-import React from 'react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { FileDown } from 'lucide-react';
 
 export default function ExportButton({ data }: { data: any }) {
   const exportPDF = () => {
-    const doc = new jsPDF() as any;
+    const doc = new jsPDF();
     doc.setFontSize(26);
     doc.setTextColor(15, 23, 42); // slate-900
     doc.text('VyapaarVaani Income Statement', 14, 22);
@@ -16,7 +15,7 @@ export default function ExportButton({ data }: { data: any }) {
       it.name, it.qty, '₹' + it.price, '₹' + (it.qty * it.price)
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 40,
       head: [['Item', 'Qty', 'Price', 'Total']],
       body: tableData,
@@ -24,7 +23,7 @@ export default function ExportButton({ data }: { data: any }) {
       headStyles: { fillColor: [59, 130, 246] }
     });
 
-    const finalY = doc.lastAutoTable.finalY || 40;
+    const finalY = (doc as any).lastAutoTable.finalY || 40;
     doc.setFontSize(14);
     doc.text('Total Earnings: ₹' + data.ledger_entry.earnings, 14, finalY + 15);
 

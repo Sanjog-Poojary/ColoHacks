@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, MapPin, Store, ArrowRight, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../lib/api';
 
 export default function OnboardingModal({ isOpen, onComplete }: { isOpen: boolean; onComplete: (profile: any) => void }) {
   const [name, setName] = useState('');
@@ -14,7 +14,7 @@ export default function OnboardingModal({ isOpen, onComplete }: { isOpen: boolea
     setIsLoading(true);
     const shopData = { name, city, business_type: business };
     try {
-      const res = await axios.post('http://localhost:8000/api/shops', shopData);
+      const res = await api.post('/shops', shopData);
       onComplete(res.data);
     } catch (err) { console.error('Shop creation failed', err); }
     setIsLoading(false);

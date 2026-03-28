@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tag, TrendingUp, AlertTriangle, MessageSquare, IndianRupee, Languages, Trash2, Loader2 } from 'lucide-react';
 import ExportButton from './ExportButton';
-import axios from 'axios';
+import api from '../lib/api';
 
 export default function LedgerCard({ data, onDelete }: { data: any; onDelete?: (id: string) => void }) {
   const [translated, setTranslated] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export default function LedgerCard({ data, onDelete }: { data: any; onDelete?: (
     if (translated) { setTranslated(null); return; } // Toggle off
     setIsTranslating(true);
     try {
-      const res = await axios.post('http://localhost:8000/api/translate', { text: data.transcript });
+      const res = await api.post('/translate', { text: data.transcript });
       setTranslated(res.data.translated);
     } catch (e) { console.error('Translation failed', e); }
     setIsTranslating(false);
@@ -22,7 +22,7 @@ export default function LedgerCard({ data, onDelete }: { data: any; onDelete?: (
   const handleDelete = async () => {
     if (!data.id || !onDelete) return;
     try {
-      await axios.delete(`http://localhost:8000/api/ledger/${data.id}`);
+      await api.delete(`/ledger/${data.id}`);
       onDelete(data.id);
     } catch (e) { console.error('Delete failed', e); }
   };
