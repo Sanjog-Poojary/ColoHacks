@@ -16,6 +16,7 @@ function App() {
   const { user, loading: authLoading } = useAuth();
   const [activeShopId, setActiveShopId] = useState<string | null>(localStorage.getItem('activeShopId'));
   const [activeShopName, setActiveShopName] = useState<string>('');
+  const [activeShopType, setActiveShopType] = useState<string>('');
   const [currentEntry, setCurrentEntry] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [insightsData, setInsightsData] = useState<any>(null);
@@ -47,6 +48,7 @@ function App() {
     } else {
       localStorage.removeItem('activeShopId');
       setActiveShopName('');
+      setActiveShopType('');
       setHistory([]);
       setInsightsData(null);
     }
@@ -72,8 +74,12 @@ function App() {
                 <Mic2 className='text-[#FFFFF0]' size={28} />
               </div>
               <div>
-                <span className='text-2xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-[#008080] to-[#006666] italic uppercase'>VyapaarVaani</span>
-                <p className='text-[10px] text-[#008080] font-bold uppercase tracking-widest mt-1'>{activeShopName || user.email}</p>
+                <span className='text-2xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-[#008080] to-[#006666] italic uppercase'>
+                  VyapaarVaani
+                </span>
+                <p className='text-[10px] text-[#008080] font-bold uppercase tracking-widest mt-1'>
+                  {activeShopName || user.email}
+                </p>
               </div>
             </div>
             
@@ -83,7 +89,10 @@ function App() {
               activeShopId={activeShopId} 
               onSwitch={setActiveShopId} 
               onAddShop={() => setShowOnboarding(true)} 
-              onNameChange={setActiveShopName}
+              onShopChange={(name, type) => {
+                setActiveShopName(name);
+                setActiveShopType(type);
+              }}
             />
           </div>
           
@@ -154,6 +163,7 @@ function App() {
               >
                 <LedgerList 
                   history={history} 
+                  title={activeShopType}
                   onSelect={(entry) => {
                     setCurrentEntry(entry);
                     setView('record');
@@ -167,7 +177,7 @@ function App() {
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
                 className='w-full flex justify-center'
               >
-                <BusinessInsights data={insightsData} />
+                <BusinessInsights data={insightsData} title={activeShopType} />
               </motion.div>
             )}
           </AnimatePresence>

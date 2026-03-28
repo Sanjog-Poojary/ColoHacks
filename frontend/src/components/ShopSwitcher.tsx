@@ -7,10 +7,10 @@ interface ShopSwitcherProps {
   activeShopId: string | null;
   onSwitch: (id: string | null) => void;
   onAddShop: () => void;
-  onNameChange?: (name: string) => void;
+  onShopChange?: (name: string, businessType: string) => void;
 }
 
-export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onNameChange }: ShopSwitcherProps) {
+export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onShopChange }: ShopSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [shops, setShops] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -30,8 +30,10 @@ export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onName
   const activeShop = shops.find(s => s.shop_id === activeShopId);
 
   useEffect(() => {
-    if (activeShop && onNameChange) onNameChange(activeShop.name);
-  }, [activeShop, onNameChange]);
+    if (activeShop && onShopChange) {
+      onShopChange(activeShop.name, activeShop.business_type);
+    }
+  }, [activeShop, onShopChange]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -51,8 +53,11 @@ export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onName
         className='flex items-center gap-3 px-5 py-3.5 bg-[#FDF5E6] hover:bg-white text-[#008080] border border-[#008080]/10 rounded-2xl transition-all shadow-sm'
       >
         <Store size={20} />
-        <span className='font-black text-sm text-[#333333]'>{activeShop ? activeShop.name : 'Select Shop'}</span>
-        <ChevronDown size={16} className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+        <div className='text-left'>
+          <p className='text-[10px] text-slate-500 font-bold uppercase tracking-widest'>Active Business</p>
+          <span className='font-black text-sm text-[#333333] uppercase'>{activeShop ? activeShop.business_type : 'Select Shop'}</span>
+        </div>
+        <ChevronDown size={16} className={`transition-transform duration-300 ml-2 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       <AnimatePresence>
@@ -79,8 +84,8 @@ export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onName
                     <div className='flex items-center gap-3 text-left'>
                       <Building2 size={18} className={activeShopId === shop.shop_id ? 'text-[#FFFFF0]' : 'text-[#008080]'} />
                       <div>
-                        <p className='font-bold text-sm'>{shop.name}</p>
-                        <p className={`text-[10px] ${activeShopId === shop.shop_id ? 'text-[#FFFFF0]/60' : 'text-[#666666]'}`}>{shop.business_type}</p>
+                        <p className='font-black text-xs uppercase tracking-tight'>{shop.business_type}</p>
+                        <p className={`text-[10px] font-medium ${activeShopId === shop.shop_id ? 'text-[#FFFFF0]/70' : 'text-slate-500'}`}>{shop.name}</p>
                       </div>
                     </div>
                     <div className='flex items-center gap-2'>

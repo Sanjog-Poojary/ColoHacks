@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { History, ArrowRight, Tag, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 
-export default function LedgerList({ history, onSelect, onRefresh }: { history: any[]; onSelect: (entry: any) => void; onRefresh: () => void }) {
+export default function LedgerList({ history, onSelect, onRefresh, title }: { history: any[]; onSelect: (entry: any) => void; onRefresh: () => void; title?: string }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -25,7 +25,7 @@ export default function LedgerList({ history, onSelect, onRefresh }: { history: 
     <div className='w-full max-w-4xl space-y-6'>
       <div className='flex items-center gap-3 mb-4'>
         <History className='text-[#008080]' />
-        <h2 className='text-2xl font-black text-[#333333]'>Recent Activity</h2>
+        <h2 className='text-3xl font-black text-[#333333] uppercase tracking-tight'>{title || 'Business'} History</h2>
       </div>
 
       <div className='grid grid-cols-1 gap-4'>

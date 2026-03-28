@@ -1,38 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
-import { Mic, Square } from 'lucide-react';
+import { Mic, Square, Timer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function VoiceRecorder({ onResult, onStart }: { onResult: (res: any) => void; onStart: () => void }) {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [timeLeft, setTimeLeft] = useState(180); // 3 minutes in seconds
+  const timerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (isRecording) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            stopRecording();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isRecording]);
 
   const startRecording = async () => {
+    setTimeLeft(180);
     onStart();
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
-    const chunks: Blob[] = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
 
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-    recorder.onstop = async () => {
-      const blob = new Blob(chunks, { type: 'audio/webm' });
-      const formData = new FormData();
-      formData.append('file', blob);
-      try {
-        const res = await api.post('/ingest', formData);
-        onResult(res.data);
-      } catch (err) { console.error('Upload failed', err); }
-    };
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('file', blob);
+        try {
+          const res = await api.post('/ingest', formData);
+          onResult(res.data);
+        } catch (err) { console.error('Upload failed', err); }
+      };
 
-    recorder.start();
-    setMediaRecorder(recorder);
-    setIsRecording(true);
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Microphone access denied', err);
+    }
   };
 
   const stopRecording = () => {
-    mediaRecorder?.stop();
     setIsRecording(false);
+    mediaRecorder?.stop();
+    if (mediaRecorder?.stream) {
+      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    }
+    clearInterval(timerRef.current);
   };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const isLowTime = timeLeft <= 30;
 
   return (
     <div className='flex flex-col items-center gap-12'>
@@ -71,7 +107,10 @@ export default function VoiceRecorder({ onResult, onStart }: { onResult: (res: a
           {isRecording ? (
             <>
               <Square className='text-[#FFFFF0] fill-[#FFFFF0]' size={40} />
-              <span className='text-[#FFFFF0] text-xs font-black uppercase tracking-widest animate-pulse'>Stop Recording</span>
+              <div className={`mt-2 flex items-center gap-1 font-black text-lg ${isLowTime ? 'text-white animate-pulse' : 'text-[#FFFFF0]/90'}`}>
+                <Timer size={16} />
+                <span>{formatTime(timeLeft)}</span>
+              </div>
             </>
           ) : (
             <>
@@ -85,7 +124,7 @@ export default function VoiceRecorder({ onResult, onStart }: { onResult: (res: a
       <div className='text-center space-y-3'>
         <h2 className='text-3xl font-black text-[#333333] tracking-tight'>Record Your Sales</h2>
         <p className='text-[#333333]/60 font-medium max-w-sm mx-auto leading-relaxed'>
-          Simply speak your sales data (e.g. "Sold 2 chai for 40 rupees") and let AI do the rest.
+          Simply speak your sales data. Max recording length: 3 minutes.
         </p>
       </div>
     </div>

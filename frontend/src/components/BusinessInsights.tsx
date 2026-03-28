@@ -9,7 +9,7 @@ import {
   Tooltip, ResponsiveContainer 
 } from 'recharts';
 
-export default function BusinessInsights({ data }: { data: any }) {
+export default function BusinessInsights({ data, title }: { data: any; title?: string }) {
   if (!data) {
     return (
       <div className='w-full max-w-6xl h-96 flex flex-col items-center justify-center bg-[#FDF5E6] rounded-[3rem] border border-dashed border-[#008080]/20'>
@@ -35,7 +35,7 @@ export default function BusinessInsights({ data }: { data: any }) {
             <BarChart3 className='text-[#FFFFF0]' />
           </div>
           <div>
-            <h2 className='text-3xl font-black text-[#333333]'>Business Analytics</h2>
+            <h2 className='text-3xl font-black text-[#333333] uppercase tracking-tight'>{title || 'Business'} Analytics</h2>
             <p className='text-slate-500'>AI-powered insights for your shop</p>
           </div>
         </div>
