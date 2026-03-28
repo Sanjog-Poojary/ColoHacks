@@ -21,6 +21,17 @@ async def ingest_audio(
     user: dict = Depends(get_current_user), 
     x_shop_id: str = Header(...)
 ):
+    """
+    Primary ingestion endpoint for audio business records.
+    
+    1. **Transcription**: Uses Deepgram Nova-3 (Hinglish model) to get raw text.
+    2. **Ghost Prevention (Tier 1)**: Aborts if the transcript is empty or silent.
+    3. **Extraction**: Uses Groq (Llama 3.3 70B) to parse the narration into items, expenses, and totals.
+    4. **Ghost Prevention (Tier 2)**: Aborts if the LLM finds no business data (JSON is empty).
+    5. **Persistence**: Saves the full record (transcript + structured data) to Firestore under the shop context.
+    
+    Returns: The extracted ledger entry with a unique ID.
+    """
     try:
         uid = user['uid']
         logger.info(f'Processing {file.filename} for shop {x_shop_id}')

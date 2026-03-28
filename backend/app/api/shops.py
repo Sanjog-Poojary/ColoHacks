@@ -14,6 +14,13 @@ class ShopCreate(BaseModel):
 
 @router.post('/shops')
 async def create_shop(shop: ShopCreate, user: dict = Depends(get_current_user)):
+    """
+    Creates a new shop and links it to the current user.
+    > [!NOTE]
+    > This performs a dual-write:
+    > 1. Creates a document in the `shops` collection.
+    > 2. Appends the `shop_id` to the `shops` list in the user's document.
+    """
     uid = user['uid']
     shop_id = str(uuid.uuid4())
     shop_doc = {**shop.dict(), 'owner': uid, 'shop_id': shop_id}
@@ -32,6 +39,9 @@ async def create_shop(shop: ShopCreate, user: dict = Depends(get_current_user)):
 
 @router.get('/shops')
 async def list_shops(user: dict = Depends(get_current_user)):
+    """
+    Lists all shops owned by the currently authenticated user.
+    """
     uid = user['uid']
     try:
         docs = db.collection('shops').where('owner', '==', uid).stream()
@@ -41,6 +51,11 @@ async def list_shops(user: dict = Depends(get_current_user)):
 
 @router.delete('/shops/{shop_id}')
 async def delete_shop(shop_id: str, user: dict = Depends(get_current_user)):
+    """
+    Deletes a shop and ensures it is removed from the user's profile.
+    > [!WARNING]
+    > This action is irreversible. It verifies ownership before proceeding.
+    """
     uid = user['uid']
     try:
         shop_ref = db.collection('shops').document(shop_id)

@@ -11,6 +11,19 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 router = APIRouter()
 groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+from fastapi import APIRouter, HTTPException, Query, Depends, Header
+from pydantic import BaseModel
+from app.lib.firebase_admin import db
+from google.cloud.firestore_v1 import query as firestore_query
+from app.lib.auth_middleware import get_current_user
+from groq import Groq
+import os, json, logging, datetime
+from dotenv import load_dotenv
+
+load_dotenv()
+logger = logging.getLogger(__name__)
+router = APIRouter()
+groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 
 
 class TranslateRequest(BaseModel):
@@ -19,6 +32,10 @@ class TranslateRequest(BaseModel):
 
 @router.get('/ledger')
 async def get_ledger(user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
+    """
+    Retrieves the last 7 days of ledger history for a specific shop.
+    Supports manual filtering and sorting to minimize Firestore index requirements.
+    """
     try:
         uid = user['uid']
         seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
@@ -51,6 +68,9 @@ async def get_ledger(user: dict = Depends(get_current_user), x_shop_id: str = He
 
 @router.delete('/ledger/{entry_id}')
 async def delete_entry(entry_id: str, user: dict = Depends(get_current_user)):
+    """
+    Deletes a specific ledger entry after verifying user ownership.
+    """
     try:
         uid = user['uid']
         doc_ref = db.collection('ledger').document(entry_id)
@@ -73,6 +93,12 @@ async def delete_entry(entry_id: str, user: dict = Depends(get_current_user)):
 
 @router.post('/translate')
 async def translate_text(req: TranslateRequest, user: dict = Depends(get_current_user)):
+    """
+    Translates Hinglish voice notes into professional business English using Llama 3.3.
+    Uses strict rules to distinguish between currency amounts and item counts.
+    > [!IMPORTANT]
+    > The model is instructed to treat 'Jama' as 'Credit' and 'Udhaar/Naave' as 'Debit'.
+    """
     try:
         if not req.text.strip():
             return {'translated': ''}
@@ -119,6 +145,13 @@ class ResolveRequest(BaseModel):
 
 @router.patch('/ledger/{entry_id}')
 async def resolve_flag(entry_id: str, req: ResolveRequest, user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
+    """
+    Resolves discrepancies in a ledger entry.
+    > [!NOTE]
+    > Two flows supported:
+    > - **Scenario A**: Full ledger_entry update (clears all flags).
+    > - **Scenario B**: Manual index-based flag removal.
+    """
     try:
         uid = user['uid']
         doc_ref = db.collection('ledger').document(entry_id)

@@ -6,7 +6,13 @@ from app.api.insights import router as insights_router
 from app.api.profile import router as profile_router
 from app.api.shops import router as shops_router
 
-app = FastAPI(title='VyapaarVaani API')
+app = FastAPI(
+    title='VyapaarVaani API 🎙️📊',
+    description='Automated Hinglish Voice Ledger for Indian Street Vendors. Transcribe, extract, and analyze sales with AI.',
+    version='1.0.0',
+    docs_url='/docs',
+    redoc_url='/redoc'
+)
 
 app.add_middleware(
     CORSMiddleware,

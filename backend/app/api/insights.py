@@ -10,6 +10,19 @@ router = APIRouter()
 groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 @router.get('/insights')
 async def get_insights(user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
+    """
+    Generates business intelligence using a hybrid statistical + AI approach.
+    
+    1. **Data Gathering**: Fetches the last 7 days of ledger items.
+    2. **Statistical Anomaly Detection**:
+       - Calculates average daily earnings across the window.
+       - Flags high variance (e.g., current day > 2x average) for immediate feedback.
+    3. **LLM Pattern Recognition**:
+       - Sends the raw ledger data to Groq Llama 3.3.
+       - Extracts bestsellers, slow-moving items, and strategic advice.
+    
+    Returns: Chart data, AI insights, weekly totals, and urgent alerts.
+    """
     try:
         uid = user['uid']
         seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
@@ -69,3 +82,4 @@ async def get_insights(user: dict = Depends(get_current_user), x_shop_id: str = 
     except Exception as e:
         logger.error(f'Insights error: {str(e)}', exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
