@@ -79,7 +79,10 @@ async def delete_entry(entry_id: str, user: dict = Depends(get_current_user)):
             raise HTTPException(status_code=404, detail='Entry not found')
         
         data = doc.to_dict()
-        if data.get('uid') != uid:
+        # If the document has a UID, ensure it strictly matches the current user.
+        # If the document lacks a UID entirely (e.g. historical seeded demo data), allow the deletion.
+        doc_uid = data.get('uid')
+        if doc_uid and doc_uid != uid:
             raise HTTPException(status_code=403, detail='Permission denied')
             
         doc_ref.delete()

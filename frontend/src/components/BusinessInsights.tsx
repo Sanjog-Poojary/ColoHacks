@@ -61,11 +61,16 @@ export default function BusinessInsights({ data, title }: { data: any; title?: s
     const forecast = data.revenue_trend.forecast || [];
     
     // Format historical data
-    const formattedHist = hist.map((h: any) => ({
-      ...h,
-      dateLabel: new Date(h.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }),
-      isForecast: false
-    }));
+    const formattedHist = hist.map((h: any, index: number) => {
+      const isLast = index === hist.length - 1;
+      return {
+        ...h,
+        dateLabel: new Date(h.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }),
+        isForecast: false,
+        // Bridge the gap by starting the predicted dash line exactly at the final actual data point
+        ...(isLast ? { predicted_earnings: h.earnings, predicted_bridge: true } : {})
+      };
+    });
     
     // Format forecast data
     const formattedForecast = forecast.map((f: any) => ({

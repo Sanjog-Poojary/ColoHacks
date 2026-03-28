@@ -33,6 +33,7 @@ Validation rules:
 - If an expense seems completely unrelated to their business type, flag it for confirmation.
 - Never silently drop data. Anomalous data is still recorded — just tagged differently.
 - Do not hallucinate items or numbers. If something was not mentioned, do not add it.
+- CRITICAL: You MUST do all math calculations yourself and output ONLY the final computed float/integer. Never output mathematical expressions like `20 * 40` inside JSON values.
 
 Always respond with valid JSON only. No explanation. No markdown fences.
 Expected JSON:
@@ -135,5 +136,7 @@ async def ingest_audio(
     except Exception as e:
         err_msg = traceback.format_exc()
         logger.error(f'Ingest crash:\n{err_msg}')
+        with open('crash.txt', 'w') as f:
+            f.write(err_msg)
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))

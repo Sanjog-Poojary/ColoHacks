@@ -27,7 +27,8 @@ async def get_insights(user: dict = Depends(get_current_user), x_shop_id: str = 
         if cache_doc.exists:
             cache_data = cache_doc.to_dict()
             computed_at = datetime.datetime.fromisoformat(cache_data['computed_at'])
-            if (datetime.datetime.now() - computed_at).total_seconds() < (6 * 3600):
+            # Temporarily checking for < 5 seconds so the AI rebuilds instantly upon Ledger deletes/edits!
+            if (datetime.datetime.now() - computed_at).total_seconds() < 5:
                 logger.info(f"Serving cached insights for shop {x_shop_id}")
                 return cache_data['result']
 
