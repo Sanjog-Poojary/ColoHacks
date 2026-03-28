@@ -13,16 +13,13 @@ interface ShopSwitcherProps {
 export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onShopChange }: ShopSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [shops, setShops] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchShops = async () => {
-      setLoading(true);
       try {
         const res = await api.get('/shops');
         setShops(res.data);
       } catch (err) { console.error('Failed to fetch shops', err); }
-      setLoading(false);
     };
     fetchShops();
   }, []);
@@ -72,23 +69,23 @@ export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onShop
             >
               <div className='p-3 space-y-1'>
                 {shops.map((shop) => (
-                  <button
+                  <div
                     key={shop.shop_id}
                     onClick={() => { onSwitch(shop.shop_id); setIsOpen(false); }}
-                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all cursor-pointer ${
                       activeShopId === shop.shop_id 
                         ? 'bg-[#008080] text-[#FFFFF0] shadow-lg shadow-[#008080]/20' 
                         : 'text-[#333333] hover:bg-[#008080]/10'
                     }`}
                   >
-                    <div className='flex items-center gap-3 text-left'>
+                    <div className='flex items-center gap-3 text-left overflow-hidden'>
                       <Building2 size={18} className={activeShopId === shop.shop_id ? 'text-[#FFFFF0]' : 'text-[#008080]'} />
-                      <div>
-                        <p className='font-black text-xs uppercase tracking-tight'>{shop.business_type}</p>
-                        <p className={`text-[10px] font-medium ${activeShopId === shop.shop_id ? 'text-[#FFFFF0]/70' : 'text-slate-500'}`}>{shop.name}</p>
+                      <div className='min-w-0'>
+                        <p className='font-black text-xs uppercase tracking-tight truncate'>{shop.business_type}</p>
+                        <p className={`text-[10px] font-medium truncate ${activeShopId === shop.shop_id ? 'text-[#FFFFF0]/70' : 'text-slate-500'}`}>{shop.name}</p>
                       </div>
                     </div>
-                    <div className='flex items-center gap-2'>
+                    <div className='flex items-center gap-2 shrink-0'>
                       {activeShopId === shop.shop_id && <div className='w-2 h-2 bg-[#FFFFF0] rounded-full animate-pulse' />}
                       <button 
                         onClick={(e) => handleDelete(e, shop.shop_id)}
@@ -97,7 +94,7 @@ export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onShop
                         <Trash2 size={14} />
                       </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
                 
                 <button

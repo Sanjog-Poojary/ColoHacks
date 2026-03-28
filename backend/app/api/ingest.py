@@ -38,6 +38,11 @@ async def ingest_audio(
         if hasattr(response, 'results') and response.results.channels[0].alternatives:
             transcript = response.results.channels[0].alternatives[0].transcript
         logger.info(f'Transcript: {transcript}')
+        
+        # --- PREVENT GHOST TRANSACTIONS (Tier 1: Silence) ---
+        if not transcript or not transcript.strip():
+            logger.warning("Empty transcript detected. Aborting save.")
+            raise HTTPException(status_code=400, detail="Silence detected. Please try recording again with clear speech.")
 
         prompt = (
             'You are a business data extractor for Indian street vendors. '
@@ -55,6 +60,15 @@ async def ingest_audio(
             response_format={'type': 'json_object'},
         )
         ledger_entry = json.loads(completion.choices[0].message.content)
+
+        # --- PREVENT GHOST TRANSACTIONS (Tier 2: Empty Extraction) ---
+        has_items = len(ledger_entry.get('items_sold', [])) > 0
+        has_expenses = len(ledger_entry.get('expenses', [])) > 0
+        has_earnings = ledger_entry.get('earnings', 0) > 0
+        
+        if not (has_items or has_expenses or has_earnings):
+            logger.warning("Meaningless transcript detected (no items/money found). Aborting save.")
+            raise HTTPException(status_code=400, detail="No business data (sales or expenses) found in your recording. Please try again.")
 
         # Save to Firestore
         entry_data = {

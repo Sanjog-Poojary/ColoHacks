@@ -20,7 +20,7 @@ export default function ExportButton({ data }: { data: any }) {
       head: [['Item', 'Qty', 'Price', 'Total']],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [59, 130, 246] }
+      headStyles: { fillColor: [0, 128, 128] } // Teal signature
     });
 
     const finalY = (doc as any).lastAutoTable.finalY || 40;
@@ -33,9 +33,9 @@ export default function ExportButton({ data }: { data: any }) {
   return (
     <button 
       onClick={exportPDF} 
-      className='flex items-center gap-2 bg-blue-500 hover:bg-blue-600 px-6 py-2.5 rounded-xl text-white font-bold transition-all shadow-lg shadow-blue-500/20'
+      className='flex items-center gap-2 bg-[#008080] hover:bg-[#006666] px-3 md:px-6 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[#FFFFF0] font-bold transition-all shadow-lg shadow-[#008080]/20 text-xs md:text-sm'
     >
-      <FileDown size={18} /> Export PDF
+      <FileDown size={18} /> <span className='hidden sm:inline'>Export PDF</span>
     </button>
   );
 }

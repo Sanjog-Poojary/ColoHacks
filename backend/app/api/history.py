@@ -109,8 +109,16 @@ async def translate_text(req: TranslateRequest, user: dict = Depends(get_current
         raise HTTPException(status_code=500, detail=str(e))
 
 
+from pydantic import BaseModel
+from typing import Optional
+
+class ResolveRequest(BaseModel):
+    ledger_entry: Optional[dict] = None
+    flag_index: Optional[int] = None
+
+
 @router.patch('/ledger/{entry_id}')
-async def resolve_flag(entry_id: str, flag_index: int = Query(...), user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
+async def resolve_flag(entry_id: str, req: ResolveRequest, user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
     try:
         uid = user['uid']
         doc_ref = db.collection('ledger').document(entry_id)
@@ -122,13 +130,22 @@ async def resolve_flag(entry_id: str, flag_index: int = Query(...), user: dict =
         if data.get('uid') != uid or data.get('shop_id') != x_shop_id:
             raise HTTPException(status_code=403, detail='Permission denied')
 
-        if 'ledger_entry' in data and 'flags' in data['ledger_entry']:
+        # Scenario A: Full entry update (New Flow)
+        if req.ledger_entry:
+            new_entry = req.ledger_entry
+            new_entry['flags'] = [] # Clear all flags once user clarifies
+            doc_ref.update({'ledger_entry': new_entry})
+            return {'message': 'Entry updated and flags cleared'}
+
+        # Scenario B: Manual Resolve by index (Old Flow)
+        if 'ledger_entry' in data and 'flags' in data['ledger_entry'] and req.flag_index is not None:
             flags = data['ledger_entry']['flags']
-            if 0 <= flag_index < len(flags):
-                flags.pop(flag_index)
+            if 0 <= req.flag_index < len(flags):
+                flags.pop(req.flag_index)
                 doc_ref.update({'ledger_entry': data['ledger_entry']})
                 return {'message': 'Flag resolved'}
-        return {'message': 'No flags found'}
+        
+        return {'message': 'No changes made'}
     except HTTPException:
         raise
     except Exception as e:

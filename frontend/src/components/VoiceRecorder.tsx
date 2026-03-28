@@ -5,9 +5,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function VoiceRecorder({ onResult, onStart }: { onResult: (res: any) => void; onStart: () => void }) {
   const [isRecording, setIsRecording] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [timeLeft, setTimeLeft] = useState(180); // 3 minutes in seconds
   const timerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   useEffect(() => {
     if (isRecording) {
@@ -42,7 +50,11 @@ export default function VoiceRecorder({ onResult, onStart }: { onResult: (res: a
         try {
           const res = await api.post('/ingest', formData);
           onResult(res.data);
-        } catch (err) { console.error('Upload failed', err); }
+        } catch (err: any) { 
+          console.error('Upload failed', err);
+          setError(err.response?.data?.detail || 'Failed to process audio. Please try again.');
+          onResult(null); // Signal failure to parent
+        }
       };
 
       recorder.start();
@@ -72,7 +84,23 @@ export default function VoiceRecorder({ onResult, onStart }: { onResult: (res: a
 
   return (
     <div className='flex flex-col items-center gap-12'>
-      <div className='relative'>
+      <div className='relative flex flex-col items-center'>
+        <AnimatePresence>
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className='absolute -top-16 left-0 right-0 flex justify-center z-50'
+            >
+              <div className='bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm whitespace-nowrap'>
+                <Square className='text-red-500 fill-red-500' size={14} />
+                <span className='text-red-600 font-bold text-xs uppercase tracking-tight'>{error}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
           {isRecording && (
             <>

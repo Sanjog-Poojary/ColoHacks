@@ -4,6 +4,7 @@ import LedgerCard from './components/LedgerCard';
 import LedgerList from './components/LedgerList';
 import BusinessInsights from './components/BusinessInsights';
 import OnboardingModal from './components/OnboardingModal';
+import ClarificationDialog from './components/ClarificationDialog';
 import Login from './components/Login';
 import ShopSwitcher from './components/ShopSwitcher';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,6 +12,56 @@ import { LayoutList, Mic2, Sparkles, LogOut } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { auth } from './lib/firebaseClient';
 import api from './lib/api';
+
+// --- Small UI Components (Defined before App to avoid reference errors) ---
+
+function NavTab({ active, onClick, icon, label }: any) {
+  return (
+    <button 
+      onClick={onClick} 
+      className={'px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold ' + (active ? 'bg-[#008080] text-[#FFFFF0] shadow-lg shadow-[#008080]/20' : 'text-slate-500 hover:text-[#008080]')}
+    >
+      {icon} {label}
+    </button>
+  );
+}
+
+function MobileNavTab({ active, onClick, icon, label }: any) {
+  return (
+    <button 
+      onClick={onClick} 
+      className={`flex flex-col items-center gap-1 transition-all ${active ? 'text-[#008080]' : 'text-slate-400'}`}
+    >
+      <div className={`p-2 rounded-xl transition-all ${active ? 'bg-[#008080]/10' : ''}`}>
+        {icon}
+      </div>
+      <span className={`text-[10px] font-black uppercase tracking-tighter ${active ? 'opacity-100' : 'opacity-40'}`}>
+        {label}
+      </span>
+    </button>
+  );
+}
+
+const Store = ({ size = 20, className }: any) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+    <path d="M2 7h20" />
+    <path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7" />
+  </svg>
+);
 
 function App() {
   const { user, loading: authLoading } = useAuth();
@@ -23,23 +74,33 @@ function App() {
   const [view, setView] = useState<'record' | 'history' | 'insights'>('record');
   const [isLoading, setIsLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-
+  const [pendingClarification, setPendingClarification] = useState<any>(null);
 
   const fetchData = async () => {
     if (!user || !activeShopId) return;
     try {
-      if (view === 'history') {
-        const res = await api.get(`/ledger?shop_id=${activeShopId}`);
-        setHistory(res.data);
-      }
+      // Always fetch history to check for flags on startup
+      const histRes = await api.get(`/ledger?shop_id=${activeShopId}`);
+      setHistory(histRes.data);
+
       if (view === 'insights') {
-        const res = await api.get(`/insights?shop_id=${activeShopId}`);
-        setInsightsData(res.data);
+        const insRes = await api.get(`/insights?shop_id=${activeShopId}`);
+        setInsightsData(insRes.data);
       }
     } catch (e) {
       console.error('Fetch failed', e);
     }
   };
+
+  // Scan for pending flags on startup or history update
+  useEffect(() => {
+    if (history.length > 0 && !pendingClarification) {
+      const flagged = history.find(entry => entry.ledger_entry.flags && entry.ledger_entry.flags.length > 0);
+      if (flagged) {
+        setPendingClarification(flagged);
+      }
+    }
+  }, [history]);
 
   useEffect(() => {
     if (activeShopId) {
@@ -64,40 +125,62 @@ function App() {
         setShowOnboarding(false);
         fetchData();
       }} />
+
+      <AnimatePresence>
+        {pendingClarification && (
+          <ClarificationDialog 
+            entry={pendingClarification} 
+            onClose={(updatedEntry) => {
+              if (updatedEntry) {
+                // Update history locally
+                setHistory(prev => prev.map(e => 
+                  e.id === pendingClarification.id 
+                    ? { ...e, ledger_entry: updatedEntry } 
+                    : e
+                ));
+              }
+              setPendingClarification(null);
+            }} 
+          />
+        )}
+      </AnimatePresence>
       
-      {/* Navbar */}
+      {/* Navbar - Top */}
       <nav className='fixed top-0 w-full z-[100] bg-[#FFFFF0]/80 backdrop-blur-xl border-b border-[#008080]/10'>
-        <div className='max-w-7xl mx-auto px-6 h-28 flex items-center justify-between'>
-          <div className='flex items-center gap-6'>
-            <div className='flex items-center gap-4'>
-              <div className='w-14 h-14 bg-gradient-to-br from-[#008080] to-[#20B2AA] rounded-2xl flex items-center justify-center shadow-lg shadow-[#008080]/20'>
-                <Mic2 className='text-[#FFFFF0]' size={28} />
+        <div className='max-w-7xl mx-auto px-4 md:px-6 h-20 md:h-28 flex items-center justify-between'>
+          <div className='flex items-center gap-3 md:gap-6'>
+            <div className='flex items-center gap-3 md:gap-4'>
+              <div className='w-10 h-10 md:w-14 md:h-14 bg-gradient-to-br from-[#008080] to-[#20B2AA] rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg shadow-[#008080]/20'>
+                <Mic2 className='text-[#FFFFF0]' size={24} />
               </div>
-              <div>
-                <span className='text-2xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-[#008080] to-[#006666] italic uppercase'>
+              <div className='hidden sm:block text-left'>
+                <span className='text-xl md:text-2xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-[#008080] to-[#006666] italic uppercase leading-none'>
                   VyapaarVaani
                 </span>
-                <p className='text-[10px] text-[#008080] font-bold uppercase tracking-widest mt-1'>
+                <p className='text-[8px] md:text-[10px] text-[#008080] font-bold uppercase tracking-widest mt-0.5 md:mt-1'>
                   {activeShopName || user.email}
                 </p>
               </div>
             </div>
             
-            <div className='h-10 w-px bg-[#008080]/10 mx-2' />
+            <div className='hidden md:block h-10 w-px bg-[#008080]/10 mx-2' />
 
-            <ShopSwitcher 
-              activeShopId={activeShopId} 
-              onSwitch={setActiveShopId} 
-              onAddShop={() => setShowOnboarding(true)} 
-              onShopChange={(name, type) => {
-                setActiveShopName(name);
-                setActiveShopType(type);
-              }}
-            />
+            <div className='scale-90 md:scale-100 origin-left'>
+              <ShopSwitcher 
+                activeShopId={activeShopId} 
+                onSwitch={setActiveShopId} 
+                onAddShop={() => setShowOnboarding(true)} 
+                onShopChange={(name, type) => {
+                  setActiveShopName(name);
+                  setActiveShopType(type);
+                }}
+              />
+            </div>
           </div>
           
-          <div className='flex items-center gap-6'>
-            <div className='bg-[#FDF5E6] p-1.5 rounded-3xl flex gap-1 border border-[#008080]/10 shadow-sm'>
+          <div className='flex items-center gap-2 md:gap-6'>
+            {/* Nav Tabs for Desktop */}
+            <div className='hidden md:flex bg-[#FDF5E6] p-1.5 rounded-3xl gap-1 border border-[#008080]/10 shadow-sm'>
               <NavTab active={view === 'record'} onClick={() => setView('record')} icon={<Mic2 size={18} />} label='Record' />
               <NavTab active={view === 'history'} onClick={() => setView('history')} icon={<LayoutList size={18} />} label='History' />
               <NavTab active={view === 'insights'} onClick={() => setView('insights')} icon={<Sparkles size={18} />} label='Insights' />
@@ -105,7 +188,7 @@ function App() {
 
             <button 
               onClick={() => auth.signOut()}
-              className='p-3 bg-red-400/10 text-red-500 rounded-2xl border border-red-400/20 hover:bg-red-500 hover:text-[#FFFFF0] transition-all'
+              className='p-2.5 md:p-3 bg-red-400/10 text-red-500 rounded-xl md:rounded-2xl border border-red-400/20 hover:bg-red-500 hover:text-[#FFFFF0] transition-all'
               title='Logout'
             >
               <LogOut size={20} />
@@ -114,7 +197,29 @@ function App() {
         </div>
       </nav>
 
-      <main className='pt-48 pb-20 px-6 flex flex-col items-center gap-12'>
+      {/* Bottom Navigation for Mobile */}
+      <nav className='md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-[#FFFFF0]/90 backdrop-blur-2xl border-t border-[#008080]/10 pb-safe-area'>
+        <div className='flex items-center justify-around h-20 px-4'>
+          <MobileNavTab active={view === 'history'} onClick={() => setView('history')} icon={<LayoutList size={22} />} label='History' />
+          
+          <div className='relative -top-6'>
+            <button 
+              onClick={() => setView('record')}
+              className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all ${
+                view === 'record' 
+                  ? 'bg-[#008080] text-[#FFFFF0] shadow-[#008080]/40 scale-110 active:scale-100' 
+                  : 'bg-[#FDF5E6] text-[#008080] border border-[#008080]/20'
+              }`}
+            >
+              <Mic2 size={28} />
+            </button>
+          </div>
+
+          <MobileNavTab active={view === 'insights'} onClick={() => setView('insights')} icon={<Sparkles size={22} />} label='Insights' />
+        </div>
+      </nav>
+
+      <main className='pt-28 md:pt-48 pb-32 md:pb-20 px-4 md:px-6 flex flex-col items-center gap-8 md:gap-12'>
         {!activeShopId ? (
           <div className='flex flex-col items-center gap-6 py-20 text-center'>
             <div className='bg-[#008080]/10 p-8 rounded-[3rem] border border-[#008080]/20 shadow-2xl'>
@@ -140,7 +245,14 @@ function App() {
                 className='flex flex-col items-center gap-10 w-full'
               >
                 <VoiceRecorder 
-                  onResult={(res) => { setCurrentEntry(res); fetchData(); }} 
+                  onResult={(res) => { 
+                    if (!res) {
+                      setIsLoading(false);
+                      return;
+                    }
+                    setCurrentEntry(res); 
+                    fetchData(); 
+                  }} 
                   onStart={() => { setCurrentEntry(null); setIsLoading(true); }}
                 />
                 
@@ -186,37 +298,5 @@ function App() {
     </div>
   );
 }
-
-function NavTab({ active, onClick, icon, label }: any) {
-  return (
-    <button 
-      onClick={onClick} 
-      className={'px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold ' + (active ? 'bg-[#008080] text-[#FFFFF0] shadow-lg shadow-[#008080]/20' : 'text-slate-500 hover:text-[#008080]')}
-    >
-      {icon} {label}
-    </button>
-  );
-}
-
-const Store = ({ size, className }: any) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
-    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-    <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
-    <path d="M2 7h20" />
-    <path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7" />
-  </svg>
-);
 
 export default App;
