@@ -12,11 +12,11 @@ export default function OnboardingModal({ isOpen, onComplete }: { isOpen: boolea
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const profile = { name, city, business_type: business };
+    const shopData = { name, city, business_type: business };
     try {
-      await axios.post('http://localhost:8000/api/profile', profile);
-      onComplete(profile);
-    } catch (err) { console.error('Onboarding failed', err); }
+      const res = await axios.post('http://localhost:8000/api/shops', shopData);
+      onComplete(res.data);
+    } catch (err) { console.error('Shop creation failed', err); }
     setIsLoading(false);
   };
 

@@ -8,7 +8,7 @@ export default function ExportButton({ data }: { data: any }) {
     const doc = new jsPDF() as any;
     doc.setFontSize(26);
     doc.setTextColor(15, 23, 42); // slate-900
-    doc.text('VoiceTrace Income Statement', 14, 22);
+    doc.text('VyapaarVaani Income Statement', 14, 22);
     doc.setFontSize(10);
     doc.text('Date: ' + new Date().toLocaleDateString(), 14, 30);
     
@@ -28,7 +28,7 @@ export default function ExportButton({ data }: { data: any }) {
     doc.setFontSize(14);
     doc.text('Total Earnings: ₹' + data.ledger_entry.earnings, 14, finalY + 15);
 
-    doc.save('VoiceTrace_Ledger_' + new Date().getTime() + '.pdf');
+    doc.save('VyapaarVaani_Ledger_' + new Date().getTime() + '.pdf');
   };
 
   return (

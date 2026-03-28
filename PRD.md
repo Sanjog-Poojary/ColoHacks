@@ -1,4 +1,4 @@
-# VoiceTrace — Product Requirements Document
+# VyapaarVaani — Product Requirements Document
 **Version:** 1.0  
 **Team:** [Your Team Name]  
 **Last Updated:** 2026-03-28  
@@ -19,7 +19,7 @@ The barrier is not motivation. Writing takes time, and literacy is not universal
 
 ### 1.2 Solution
 
-VoiceTrace is an AI-powered voice ledger. A vendor speaks freely about their day — what they sold, what they spent, how the day went — in Hindi, English, or Hinglish. The system transcribes, extracts structured business data, maintains a running ledger, identifies weekly patterns, and surfaces next-day suggestions. Zero form-filling. Zero literacy requirement.
+VyapaarVaani is an AI-powered voice ledger. A vendor speaks freely about their day — what they sold, what they spent, how the day went — in Hindi, English, or Hinglish. The system transcribes, extracts structured business data, maintains a running ledger, identifies weekly patterns, and surfaces next-day suggestions. Zero form-filling. Zero literacy requirement.
 
 ### 1.3 Target User
 
@@ -203,11 +203,11 @@ Transcript:
 - [ ] PDF contains: vendor name, date range, total earnings, total expenses, net income, items sold breakdown, disclaimer line
 - [ ] Plain language, no jargon — readable by a bank officer or NGO worker
 - [ ] Generated entirely client-side with jsPDF
-- [ ] File name: `VoiceTrace_Income_{YYYY-MM}.pdf`
+- [ ] File name: `VyapaarVaani_Income_{YYYY-MM}.pdf`
 
 **jsPDF structure:**
 ```
-[VoiceTrace Logo]                    [Date range]
+[VyapaarVaani Logo]                    [Date range]
 
 INCOME STATEMENT — WEEKLY SUMMARY
 Vendor: [name] | Business: [type] | City: [city]
@@ -512,4 +512,4 @@ Use these to validate Deepgram + Groq extraction during development:
 
 ---
 
-*Document generated for VoiceTrace hackathon submission. Build sequence follows Phase 1 → 4 order.*
+*Document generated for VyapaarVaani hackathon submission. Build sequence follows Phase 1 → 4 order.*

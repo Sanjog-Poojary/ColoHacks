@@ -1,6 +1,6 @@
-# VoiceTrace AI Ledger 🎙️📊
+# VyapaarVaani AI Ledger 🎙️📊
 
-VoiceTrace is an AI-powered voice ledger designed specifically for Indian street vendors. It allows vendors to narrate their daily business activities in Hinglish (Hindi + English), which are then automatically converted into structured financial records.
+VyapaarVaani is an AI-powered voice ledger designed specifically for Indian street vendors. It allows vendors to narrate their daily business activities in Hinglish (Hindi + English), which are then automatically converted into structured financial records.
 
 ## ✨ Features
 - **AI Voice Ingestion**: Record your day naturally; no manual data entry required.

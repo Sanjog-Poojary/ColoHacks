@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Header
 from app.lib.firebase_admin import db
+from app.lib.auth_middleware import get_current_user
 from groq import Groq
 import os, json, logging, datetime
 from dotenv import load_dotenv
@@ -8,10 +9,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 @router.get('/insights')
-async def get_insights():
+async def get_insights(user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
     try:
+        uid = user['uid']
         seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
-        docs = db.collection('ledger').where('createdAt', '>=', seven_days_ago).stream()
+        docs = (
+            db.collection('ledger')
+            .where('shop_id', '==', x_shop_id)
+            .where('uid', '==', uid)
+            .where('createdAt', '>=', seven_days_ago.isoformat())
+            .stream()
+        )
         raw_data = []
         daily_earnings = {}
         for doc in docs:

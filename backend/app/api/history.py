@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends, Header
 from pydantic import BaseModel
 from app.lib.firebase_admin import db
 from google.cloud.firestore_v1 import query as firestore_query
+from app.lib.auth_middleware import get_current_user
 from groq import Groq
 import os, json, logging
 from dotenv import load_dotenv
@@ -17,10 +18,13 @@ class TranslateRequest(BaseModel):
 
 
 @router.get('/ledger')
-async def get_ledger():
+async def get_ledger(user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
     try:
+        uid = user['uid']
         docs = (
             db.collection('ledger')
+            .where('shop_id', '==', x_shop_id)
+            .where('uid', '==', uid)
             .order_by('createdAt', direction=firestore_query.Query.DESCENDING)
             .stream()
         )
@@ -36,12 +40,18 @@ async def get_ledger():
 
 
 @router.delete('/ledger/{entry_id}')
-async def delete_entry(entry_id: str):
+async def delete_entry(entry_id: str, user: dict = Depends(get_current_user)):
     try:
+        uid = user['uid']
         doc_ref = db.collection('ledger').document(entry_id)
         doc = doc_ref.get()
         if not doc.exists:
             raise HTTPException(status_code=404, detail='Entry not found')
+        
+        data = doc.to_dict()
+        if data.get('uid') != uid:
+            raise HTTPException(status_code=403, detail='Permission denied')
+            
         doc_ref.delete()
         return {'message': 'Entry deleted successfully'}
     except HTTPException:
@@ -73,14 +83,18 @@ async def translate_text(req: TranslateRequest):
 
 
 @router.patch('/ledger/{entry_id}')
-async def resolve_flag(entry_id: str, flag_index: int = Query(...)):
+async def resolve_flag(entry_id: str, flag_index: int = Query(...), user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
     try:
+        uid = user['uid']
         doc_ref = db.collection('ledger').document(entry_id)
         doc = doc_ref.get()
         if not doc.exists:
             raise HTTPException(status_code=404, detail='Entry not found')
-
+        
         data = doc.to_dict()
+        if data.get('uid') != uid or data.get('shop_id') != x_shop_id:
+            raise HTTPException(status_code=403, detail='Permission denied')
+
         if 'ledger_entry' in data and 'flags' in data['ledger_entry']:
             flags = data['ledger_entry']['flags']
             if 0 <= flag_index < len(flags):

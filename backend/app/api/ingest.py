@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Header
 from deepgram import DeepgramClient
 from groq import Groq
 from app.lib.firebase_admin import db
+from app.lib.auth_middleware import get_current_user
 import os, json, logging, traceback, datetime
 from dotenv import load_dotenv
 
@@ -15,9 +16,14 @@ groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 
 
 @router.post('/ingest')
-async def ingest_audio(file: UploadFile = File(...)):
+async def ingest_audio(
+    file: UploadFile = File(...), 
+    user: dict = Depends(get_current_user), 
+    x_shop_id: str = Header(...)
+):
     try:
-        logger.info(f'Processing {file.filename} ({file.content_type})')
+        uid = user['uid']
+        logger.info(f'Processing {file.filename} for shop {x_shop_id}')
         content = await file.read()
 
         # Deepgram SDK v6: keyword-only args
@@ -57,9 +63,11 @@ async def ingest_audio(file: UploadFile = File(...)):
             'createdAt': datetime.datetime.now().isoformat(),
             'filename': file.filename,
             'status': 'active',
+            'shop_id': x_shop_id,
+            'uid': uid
         }
-        doc_ref = db.collection('ledger').add(entry_data)
-        entry_id = doc_ref[1].id
+        doc_ref_tuple = db.collection('ledger').add(entry_data)
+        entry_id = doc_ref_tuple[1].id
         logger.info(f'Ledger entry saved: {entry_id}')
 
         return {'id': entry_id, 'transcript': transcript, 'ledger_entry': ledger_entry}

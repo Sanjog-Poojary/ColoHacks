@@ -4,6 +4,7 @@ from app.api.ingest import router as ingest_router
 from app.api.history import router as history_router
 from app.api.insights import router as insights_router
 from app.api.profile import router as profile_router
+from app.api.shops import router as shops_router
 
 app = FastAPI(title='VyapaarVaani API')
 
@@ -19,6 +20,7 @@ app.include_router(ingest_router, prefix='/api', tags=['ingest'])
 app.include_router(history_router, prefix='/api', tags=['history'])
 app.include_router(insights_router, prefix='/api', tags=['insights'])
 app.include_router(profile_router, prefix='/api', tags=['profile'])
+app.include_router(shops_router, prefix='/api', tags=['shops'])
 
 @app.get('/')
 def read_root(): return {'message': 'VyapaarVaani API'}
