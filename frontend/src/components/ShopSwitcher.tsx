@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Store, ChevronDown, Trash2, Building2, PlusCircle } from 'lucide-react';
+import { Store, ChevronDown, Trash2, Building2, PlusCircle, Pencil } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../lib/api';
 
@@ -7,10 +7,11 @@ interface ShopSwitcherProps {
   activeShopId: string | null;
   onSwitch: (id: string | null) => void;
   onAddShop: () => void;
+  onEditShop: (shop: any) => void;
   onShopChange?: (name: string, businessType: string) => void;
 }
 
-export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onShopChange }: ShopSwitcherProps) {
+export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onEditShop, onShopChange }: ShopSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [shops, setShops] = useState<any[]>([]);
 
@@ -22,7 +23,7 @@ export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onShop
       } catch (err) { console.error('Failed to fetch shops', err); }
     };
     fetchShops();
-  }, []);
+  }, [isOpen]);
 
   const activeShop = shops.find(s => s.shop_id === activeShopId);
 
@@ -41,6 +42,12 @@ export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onShop
         if (activeShopId === id) onSwitch('');
       } catch (err) { console.error('Delete failed', err); }
     }
+  };
+
+  const handleEdit = (e: React.MouseEvent, shop: any) => {
+    e.stopPropagation();
+    onEditShop(shop);
+    setIsOpen(false);
   };
 
   return (
@@ -86,7 +93,12 @@ export default function ShopSwitcher({ activeShopId, onSwitch, onAddShop, onShop
                       </div>
                     </div>
                     <div className='flex items-center gap-2 shrink-0'>
-                      {activeShopId === shop.shop_id && <div className='w-2 h-2 bg-[#FFFFF0] rounded-full animate-pulse' />}
+                      <button 
+                        onClick={(e) => handleEdit(e, shop)}
+                        className={`p-1.5 rounded-lg hover:bg-[#FFFFF0] hover:text-[#008080] transition-all ${activeShopId === shop.shop_id ? 'text-[#FFFFF0]' : 'text-[#008080]'}`}
+                      >
+                        <Pencil size={14} />
+                      </button>
                       <button 
                         onClick={(e) => handleDelete(e, shop.shop_id)}
                         className={`p-1.5 rounded-lg hover:bg-red-500 hover:text-white transition-all ${activeShopId === shop.shop_id ? 'text-white/40' : 'text-[#999999]'}`}

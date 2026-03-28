@@ -6,3 +6,7 @@ pydantic
 python-dotenv
 aiofiles
 python-multipart
+pandas
+scikit-learn
+statsmodels
+rapidfuzz

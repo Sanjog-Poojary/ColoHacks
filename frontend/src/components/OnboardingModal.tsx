@@ -1,22 +1,49 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Store, ArrowRight, Loader2 } from 'lucide-react';
+import { MapPin, Store, ArrowRight, Loader2, Save } from 'lucide-react';
 import api from '../lib/api';
 
-export default function OnboardingModal({ isOpen, onComplete }: { isOpen: boolean; onComplete: (profile: any) => void }) {
+export default function OnboardingModal({ isOpen, onComplete, initialData, hasExistingShops, onClose }: { 
+  isOpen: boolean; 
+  onComplete: (profile: any) => void;
+  initialData?: any;
+  hasExistingShops?: boolean;
+  onClose?: () => void;
+}) {
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
   const [business, setBusiness] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || '');
+      setCity(initialData.city || '');
+      setBusiness(initialData.business_type || '');
+    } else {
+      setName('');
+      setCity('');
+      setBusiness('');
+    }
+  }, [initialData, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     const shopData = { name, city, business_type: business };
     try {
-      const res = await api.post('/shops', shopData);
-      onComplete(res.data);
-    } catch (err) { console.error('Shop creation failed', err); }
+      if (initialData?.shop_id) {
+        // --- EDIT MODE ---
+        const res = await api.patch(`/shops/${initialData.shop_id}`, shopData);
+        onComplete(res.data);
+      } else {
+        // --- CREATE MODE ---
+        const res = await api.post('/shops', shopData);
+        onComplete(res.data);
+      }
+    } catch (err) { 
+      console.error('Shop action failed', err); 
+    }
     setIsLoading(false);
   };
 
@@ -26,6 +53,7 @@ export default function OnboardingModal({ isOpen, onComplete }: { isOpen: boolea
         <div className='fixed inset-0 z-[200] flex items-center justify-center p-4'>
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={onClose}
             className='absolute inset-0 bg-[#333333]/40 backdrop-blur-md'
           />
           
@@ -43,34 +71,38 @@ export default function OnboardingModal({ isOpen, onComplete }: { isOpen: boolea
                 <div className='w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-[#008080] to-[#20B2AA] rounded-2xl md:rounded-[2rem] flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-xl shadow-[#008080]/20'>
                   <Store className='text-[#FFFFF0]' size={32} />
                 </div>
-                <h2 className='text-2xl md:text-3xl font-black text-[#333333] tracking-tight leading-none'>Welcome to VyapaarVaani</h2>
-                <p className='text-slate-500 mt-2 font-medium text-sm md:text-base'>Let's set up your first shop.</p>
+                <h2 className='text-2xl md:text-3xl font-black text-[#333333] tracking-tight leading-none'>
+                  {initialData ? 'Update Business Info' : (hasExistingShops ? 'Expand Your Business' : 'Welcome to VyapaarVaani')}
+                </h2>
+                <p className='text-slate-600 mt-2 font-bold text-sm md:text-base'>
+                  {initialData ? 'Correct your shop details below.' : (hasExistingShops ? 'Add a new location or store.' : "Let's set up your first shop.")}
+                </p>
               </div>
 
               <form onSubmit={handleSubmit} className='space-y-4 md:space-y-6'>
                 <div className='space-y-3 md:space-y-4'>
                   <div className='relative'>
-                    <Store className='absolute left-4 md:left-5 top-1/2 -translate-y-1/2 text-slate-400' size={18} />
+                    <Store className='absolute left-4 md:left-5 top-1/2 -translate-y-1/2 text-slate-500' size={18} />
                     <input 
                       required type='text' placeholder='Shop Name (e.g. Chai Stall)' 
                       value={name} onChange={(e) => setName(e.target.value)}
-                      className='w-full bg-slate-100 border border-slate-200 rounded-xl md:rounded-2xl py-4 md:py-5 pl-12 md:pl-14 pr-6 text-[#333333] placeholder:text-slate-400 focus:border-[#008080] focus:bg-white transition-all outline-none text-sm md:text-base'
+                      className='w-full bg-slate-100 border border-slate-200 rounded-xl md:rounded-2xl py-4 md:py-5 pl-12 md:pl-14 pr-6 text-[#333333] placeholder:text-slate-500 font-bold focus:border-[#008080] focus:bg-white transition-all outline-none text-sm md:text-base'
                     />
                   </div>
                   <div className='relative'>
-                    <MapPin className='absolute left-4 md:left-5 top-1/2 -translate-y-1/2 text-slate-400' size={18} />
+                    <MapPin className='absolute left-4 md:left-5 top-1/2 -translate-y-1/2 text-slate-500' size={18} />
                     <input 
                       required type='text' placeholder='City' 
                       value={city} onChange={(e) => setCity(e.target.value)}
-                      className='w-full bg-slate-100 border border-slate-200 rounded-xl md:rounded-2xl py-4 md:py-5 pl-12 md:pl-14 pr-6 text-[#333333] placeholder:text-slate-400 focus:border-[#008080] focus:bg-white transition-all outline-none text-sm md:text-base'
+                      className='w-full bg-slate-100 border border-slate-200 rounded-xl md:rounded-2xl py-4 md:py-5 pl-12 md:pl-14 pr-6 text-[#333333] placeholder:text-slate-500 font-bold focus:border-[#008080] focus:bg-white transition-all outline-none text-sm md:text-base'
                     />
                   </div>
                   <div className='relative'>
-                    <Store className='absolute left-4 md:left-5 top-1/2 -translate-y-1/2 text-slate-400' size={18} />
+                    <Store className='absolute left-4 md:left-5 top-1/2 -translate-y-1/2 text-slate-500' size={18} />
                     <input 
                       required type='text' placeholder='Business Category (e.g. Retail)' 
                       value={business} onChange={(e) => setBusiness(e.target.value)}
-                      className='w-full bg-slate-100 border border-slate-200 rounded-xl md:rounded-2xl py-4 md:py-5 pl-12 md:pl-14 pr-6 text-[#333333] placeholder:text-slate-400 focus:border-[#008080] focus:bg-white transition-all outline-none text-sm md:text-base'
+                      className='w-full bg-slate-100 border border-slate-200 rounded-xl md:rounded-2xl py-4 md:py-5 pl-12 md:pl-14 pr-6 text-[#333333] placeholder:text-slate-500 font-bold focus:border-[#008080] focus:bg-white transition-all outline-none text-sm md:text-base'
                     />
                   </div>
                 </div>
@@ -84,8 +116,8 @@ export default function OnboardingModal({ isOpen, onComplete }: { isOpen: boolea
                     <Loader2 className='animate-spin' size={20} />
                   ) : (
                     <>
-                      <span>Get Started</span>
-                      <ArrowRight size={20} />
+                      <span>{initialData ? 'Save Changes' : 'Get Started'}</span>
+                      {initialData ? <Save size={20} /> : <ArrowRight size={20} />}
                     </>
                   )}
                 </button>

@@ -1,85 +1,89 @@
 from fastapi import APIRouter, HTTPException, Depends, Header
 from app.lib.firebase_admin import db
 from app.lib.auth_middleware import get_current_user
-from groq import Groq
-import os, json, logging, datetime
-from dotenv import load_dotenv
-load_dotenv()
+import asyncio
+import logging
+import datetime
+from app.ml.data_fetcher import fetch_vendor_entries
+from app.ml.revenue_trend import compute_revenue_trend
+from app.ml.top_items import compute_top_items
+from app.ml.stock_suggestion import compute_stock_suggestions
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
-groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+
 @router.get('/insights')
 async def get_insights(user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
     """
-    Generates business intelligence using a hybrid statistical + AI approach.
-    
-    1. **Data Gathering**: Fetches the last 7 days of ledger items.
-    2. **Statistical Anomaly Detection**:
-       - Calculates average daily earnings across the window.
-       - Flags high variance (e.g., current day > 2x average) for immediate feedback.
-    3. **LLM Pattern Recognition**:
-       - Sends the raw ledger data to Groq Llama 3.3.
-       - Extracts bestsellers, slow-moving items, and strategic advice.
-    
-    Returns: Chart data, AI insights, weekly totals, and urgent alerts.
+    Retrieves business insights using a 100% local ML engine.
+    > [!IMPORTANT]
+    > Uses a 6-hour Firestore cache to minimize CPU usage while keeping data fresh.
     """
     try:
-        uid = user['uid']
-        seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
-        docs = (
-            db.collection('ledger')
-            .where('shop_id', '==', x_shop_id)
-            .stream()
+        # 1. Check Cache
+        cache_ref = db.collection('shops').document(x_shop_id).collection('insights').document('latest')
+        cache_doc = cache_ref.get()
+        
+        if cache_doc.exists:
+            cache_data = cache_doc.to_dict()
+            computed_at = datetime.datetime.fromisoformat(cache_data['computed_at'])
+            if (datetime.datetime.now() - computed_at).total_seconds() < (6 * 3600):
+                logger.info(f"Serving cached insights for shop {x_shop_id}")
+                return cache_data['result']
+
+        # 2. Fetch Data
+        df = await fetch_vendor_entries(x_shop_id)
+        
+        if df.empty:
+            # Check how many days recorded to show progress
+            # (Simple count from 'ledger' collection)
+            ledger_count = len(list(db.collection('ledger').where('shop_id', '==', x_shop_id).stream()))
+            return {
+                "status": "insufficient_data",
+                "days_recorded": ledger_count
+            }
+
+        # 3. Run ML Models in Parallel (CPU-bound, use threads)
+        # Using loop.run_in_executor for CPU-bound tasks
+        loop = asyncio.get_event_loop()
+        
+        revenue_task = loop.run_in_executor(None, compute_revenue_trend, df)
+        top_items_task = loop.run_in_executor(None, compute_top_items, df)
+        stock_task = loop.run_in_executor(None, compute_stock_suggestions, df)
+        
+        revenue_trend, top_items, stock_suggestions = await asyncio.gather(
+            revenue_task, top_items_task, stock_task
         )
-        raw_data = []
-        daily_earnings = {}
-        for doc in docs:
-            data = doc.to_dict()
-            
-            # Manual date filtering
-            dt_str = data.get('createdAt')
-            if not dt_str: continue
-            
-            dt = datetime.datetime.fromisoformat(dt_str)
-            if dt < seven_days_ago: continue
-            
-            raw_data.append(data)
-            dt = data.get('createdAt')
-            if isinstance(dt, str): dt = datetime.datetime.fromisoformat(dt)
-            if isinstance(dt, datetime.datetime):
-                date_str = dt.strftime('%Y-%m-%d')
-                daily_earnings[date_str] = daily_earnings.get(date_str, 0) + data['ledger_entry']['earnings']
         
-        if not raw_data:
-             return {
-                 'chart_data': [],
-                 'insights': {'bestseller': '-', 'slow_item': '-', 'suggestion': 'No data available yet. Record your first sale!'},
-                 'weekly_total': 0,
-                 'alert': None
-             }
+        # 4. Calculate Aggregate Confidence Score (0-100)
+        # R2 score (0 to 1) + Data quantity weight
+        r2 = revenue_trend.get('confidence', 0)
+        data_weight = min(len(df) / 14, 1.0) # Full weight at 14 days
         
-        # Anomaly Detection Logic
-        avg_earnings = sum(daily_earnings.values()) / len(daily_earnings)
-        latest_date = sorted(daily_earnings.keys())[-1]
-        latest_earnings = daily_earnings[latest_date]
-        
-        alert = None
-        if latest_earnings > 2 * avg_earnings:
-            alert = 'Your sales today are more than double your average! What happened?'
-        elif latest_earnings < 0.5 * avg_earnings and len(daily_earnings) > 2:
-            alert = 'Sales are unusually low today compared to your weekly average.'
+        # Confidence = 70% R2, 30% Data Volume
+        # Cap R2 at 0.95 for realistic reporting
+        calc_score = (min(r2, 0.95) * 0.7 + data_weight * 0.3) * 100
+        confidence_score = max(min(int(calc_score), 99), 40) # Keep between 40-99%
 
-        prompt = f'Given the following weekly business narration data: {json.dumps(raw_data[:20])}. Identify the bestseller, any slow items, and give a 1-sentence suggestion for the vendor to improve sales tomorrow. Respond in JSON with keys: bestseller, slow_item, suggestion.'
-        completion = groq_client.chat.completions.create(model='llama-3.3-70b-versatile', messages=[{'role': 'user', 'content': prompt}], response_format={'type': 'json_object'})
-        insights = json.loads(completion.choices[0].message.content)
-        chart_data = [{'date': d, 'earnings': e} for d, e in sorted(daily_earnings.items())]
-        return {
-            'chart_data': chart_data, 
-            'insights': insights, 
-            'weekly_total': sum(daily_earnings.values()),
-            'alert': alert
+        result = {
+            "status": "ok",
+            "revenue_trend": revenue_trend,
+            "top_items": top_items,
+            "stock_suggestions": stock_suggestions,
+            "trend_direction": revenue_trend.get('trend_direction', 'stable'),
+            "confidence_score": confidence_score,
+            "days_recorded": len(df),
+            "computed_at": datetime.datetime.now().isoformat()
         }
-    except Exception as e:
-        logger.error(f'Insights error: {str(e)}', exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
 
+        # 4. Save to Cache
+        cache_ref.set({
+            "computed_at": datetime.datetime.now().isoformat(),
+            "result": result
+        })
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Insights Error for shop {x_shop_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

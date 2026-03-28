@@ -81,3 +81,35 @@ async def delete_shop(shop_id: str, user: dict = Depends(get_current_user)):
         return {'status': 'success'}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+class ShopUpdate(BaseModel):
+    name: str | None = None
+    city: str | None = None
+    business_type: str | None = None
+
+@router.patch('/shops/{shop_id}')
+async def update_shop(shop_id: str, update: ShopUpdate, user: dict = Depends(get_current_user)):
+    """
+    Updates an existing shop's profile details.
+    > [!IMPORTANT]
+    > This endpoint verifies that the current user owns the shop before allowing any modifications.
+    """
+    uid = user['uid']
+    try:
+        shop_ref = db.collection('shops').document(shop_id)
+        shop_doc = shop_ref.get()
+        if not shop_doc.exists:
+            raise HTTPException(status_code=404, detail='Shop not found')
+        
+        if shop_doc.to_dict().get('owner') != uid:
+            raise HTTPException(status_code=403, detail='Not authorized to edit this shop')
+        
+        # Prepare filtered update
+        update_data = {k: v for k, v in update.dict().items() if v is not None}
+        if update_data:
+            shop_ref.update(update_data)
+        
+        return {**shop_doc.to_dict(), **update_data}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))

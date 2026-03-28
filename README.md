@@ -7,7 +7,9 @@ VyapaarVaani is an AI-powered voice ledger designed specifically for Indian stre
 - **Multi-lingual Support**: Powered by Deepgram Nova-3 for accurate Hinglish transcription.
 - **Smart Extraction**: Uses Llama 3.3 via Groq to identify items sold, expenses, and total earnings.
 - **Confidence Flags & Proactive Clarification**: Automatically identifies ambiguous data and prompts for shopkeeper review on startup.
-- **Premium UI**: Modern Glassmorphism interface for a high-end fintech experience.
+- **Local ML Insights**: Professional business analytics using Linear Regression and Exponential Smoothing for revenue forecasting and automated stock suggestions. No external AI APIs are called for this feature, ensuring zero latency and 100% data privacy.
+- **Premium Analytics UI**: Modern Recharts-based dashboard with interactive trend lines, rolling averages, and a 7-day forecast zone.
+- **Entity Normalization**: High-speed fuzzy matching to aggregate similar items (e.g., 'Kela' and 'Banana') for accurate inventory tracking.
 - **Exportable Insights**: Ready-to-use income statements (Coming Soon).
 
 ## 🛠️ Tech Stack

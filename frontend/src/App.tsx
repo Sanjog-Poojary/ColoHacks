@@ -8,12 +8,35 @@ import ClarificationDialog from './components/ClarificationDialog';
 import Login from './components/Login';
 import ShopSwitcher from './components/ShopSwitcher';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutList, Mic2, Sparkles, LogOut } from 'lucide-react';
+import { LayoutList, Mic2, Sparkles, LogOut, WifiOff, RefreshCw, X } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { auth } from './lib/firebaseClient';
 import api from './lib/api';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
+import { flushOfflineQueue, getOfflineQueueCount } from './utils/offlineQueue';
 
 // --- Small UI Components (Defined before App to avoid reference errors) ---
+
+function OfflineBanner({ count, onFlush }: { count: number; onFlush: () => void }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  return (
+    <motion.div 
+      initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+      className='bg-amber-500 text-white px-4 py-2 flex items-center justify-between gap-4 text-xs font-bold z-[150] sticky top-0'
+    >
+      <div className='flex items-center gap-2'>
+        <WifiOff size={14} />
+        <span>You're offline — entries will sync automatically when connected.</span>
+        {count > 0 && <span className='bg-white/20 px-2 py-0.5 rounded-full'>{count} recordings waiting</span>}
+      </div>
+      <div className='flex items-center gap-3'>
+        {count > 0 && <button onClick={onFlush} className='hover:underline flex items-center gap-1'><RefreshCw size={12} /> Sync Now</button>}
+        <button onClick={() => setDismissed(true)}><X size={14} /></button>
+      </div>
+    </motion.div>
+  );
+}
 
 function NavTab({ active, onClick, icon, label }: any) {
   return (
@@ -74,17 +97,58 @@ function App() {
   const [view, setView] = useState<'record' | 'history' | 'insights'>('record');
   const [isLoading, setIsLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [editingShop, setEditingShop] = useState<any>(null);
+  const [shops, setShops] = useState<any[]>([]);
   const [pendingClarification, setPendingClarification] = useState<any>(null);
+  const isOnline = useOnlineStatus();
+  const [offlineSyncing, setOfflineSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchShops = async () => {
+      try {
+        const res = await api.get('/shops');
+        setShops(res.data);
+      } catch (err) { console.error('Failed to fetch shops', err); }
+    };
+    if (user) fetchShops();
+  }, [user, showOnboarding]);
+
+  useEffect(() => {
+    if (isOnline) {
+      const count = getOfflineQueueCount();
+      if (count > 0) {
+        handleFlush();
+      }
+    }
+  }, [isOnline]);
+
+  const handleFlush = async () => {
+    setOfflineSyncing(true);
+    const success = await flushOfflineQueue((msg) => setSyncMessage(msg));
+    setOfflineSyncing(false);
+    setSyncMessage(null);
+    if (success) {
+      fetchData();
+      // Using a custom toast/notification would be better, but for now:
+      console.log('Offline entries synced successfully');
+    }
+  };
 
   const fetchData = async () => {
     if (!user || !activeShopId) return;
+    setInsightsData(null); // Clear stale data to show loading state
     try {
-      // Always fetch history to check for flags on startup
-      const histRes = await api.get(`/ledger?shop_id=${activeShopId}`);
+      // Always fetch history 
+      const histRes = await api.get(`/ledger`, {
+        headers: { 'X-Shop-Id': activeShopId }
+      });
       setHistory(histRes.data);
 
       if (view === 'insights') {
-        const insRes = await api.get(`/insights?shop_id=${activeShopId}`);
+        const insRes = await api.get(`/insights`, {
+          headers: { 'X-Shop-Id': activeShopId }
+        });
         setInsightsData(insRes.data);
       }
     } catch (e) {
@@ -120,11 +184,27 @@ function App() {
 
   return (
     <div className='min-h-screen bg-[#FFFFF0] text-[#333333] font-sans selection:bg-[#008080]/20'>
-      <OnboardingModal isOpen={showOnboarding} onComplete={(p) => { 
-        setActiveShopId(p.shop_id);
-        setShowOnboarding(false);
-        fetchData();
-      }} />
+      <OnboardingModal 
+        isOpen={showOnboarding} 
+        initialData={editingShop}
+        hasExistingShops={shops.length > 0}
+        onClose={() => { setShowOnboarding(false); setEditingShop(null); }}
+        onComplete={(p) => { 
+          setActiveShopId(p.shop_id);
+          setShowOnboarding(false);
+          setEditingShop(null);
+          fetchData();
+        }} 
+      />
+
+      {!isOnline && <OfflineBanner count={getOfflineQueueCount()} onFlush={handleFlush} />}
+      
+      {offlineSyncing && (
+        <div className='fixed top-4 right-4 z-[200] bg-[#008080] text-[#FFFFF0] px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce'>
+          <RefreshCw size={18} className='animate-spin text-[#FFFFF0]' />
+          <span className='font-bold text-sm'>{syncMessage || 'Syncing...'}</span>
+        </div>
+      )}
 
       <AnimatePresence>
         {pendingClarification && (
@@ -169,7 +249,8 @@ function App() {
               <ShopSwitcher 
                 activeShopId={activeShopId} 
                 onSwitch={setActiveShopId} 
-                onAddShop={() => setShowOnboarding(true)} 
+                onAddShop={() => { setEditingShop(null); setShowOnboarding(true); }} 
+                onEditShop={(shop) => { setEditingShop(shop); setShowOnboarding(true); }}
                 onShopChange={(name, type) => {
                   setActiveShopName(name);
                   setActiveShopType(type);
@@ -245,8 +326,13 @@ function App() {
                 className='flex flex-col items-center gap-10 w-full'
               >
                 <VoiceRecorder 
+                  activeShopId={activeShopId}
                   onResult={(res) => { 
                     if (!res) {
+                      setIsLoading(false);
+                      return;
+                    }
+                    if (res.offline) {
                       setIsLoading(false);
                       return;
                     }
