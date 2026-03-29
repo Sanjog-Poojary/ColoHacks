@@ -51,23 +51,26 @@ gcloud run deploy vyapaar-backend \
 
 ---
 
-## 3. Frontend Deployment (Firebase Hosting)
+---
 
-### 3.1 Build the App
+## 3. Frontend Deployment
+
+### 3.1 Option A: Firebase Hosting (Recommended)
 ```bash
 cd frontend
 npm install
 npm run build
-```
-
-### 3.2 Deploy
-Make sure you have `firebase-tools` installed (`npm install -g firebase-tools`).
-```bash
-firebase login
-firebase init hosting
-# Select your project, set public directory to 'dist', rewrite all URLs to index.html
+# Set public directory to 'dist', rewrite all URLs to index.html
 firebase deploy --only hosting
 ```
+
+### 3.2 Option B: Vercel (Fastest)
+1. **Connect Repository**: Link your GitHub repo to Vercel.
+2. **Framework Preset**: Select `Vite`.
+3. **Build Command**: `npm run build`
+4. **Output Directory**: `dist`
+5. **Environment Variables**: Add `VITE_API_BASE_URL` (Pointing to your Cloud Run backend).
+6. **Deployment**: Click **Deploy**.
 
 ---
 
