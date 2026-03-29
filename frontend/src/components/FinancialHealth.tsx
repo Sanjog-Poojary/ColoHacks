@@ -1,8 +1,31 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { HeartPulse, ExternalLink, TrendingUp, Shield, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { HeartPulse, ExternalLink, TrendingUp, Shield, ChevronRight, Info, Languages } from 'lucide-react';
 import api from '../lib/api';
 import HealthExport from './HealthExport';
+
+const CRITERION_INFO: Record<string, { en: string; hi: string }> = {
+  "Business history": {
+    en: "Records your consistency over time. More days of recording your sales increases your trustworthiness.",
+    hi: "Aapke business ki purani baatein. Lagaatar hisaab rakhne se loan milne ke chances badhte hain."
+  },
+  "Earnings consistency": {
+    en: "Measures if you are hitting the PM SVANidhi baseline (₹500/day). Steady income is better than unpredictable spikes.",
+    hi: "Roz kamai ki sthirta. PM SVANidhi ke hisaab se rojana ₹500+ kamai hona accha hai."
+  },
+  "Expense stability": {
+    en: "Checks if your business expenses are stable and predictable compared to your daily earnings.",
+    hi: "Roz ke kharche ka hisaab. Agar kharche sthir hain toh business ko accha mana jata hai."
+  },
+  "Business diversification": {
+    en: "Selling a wider variety of items protects your business from market changes.",
+    hi: "Aapke dukaan mein alag-alag tarah ke saaman ka hona. Zyada variety se jokhim (risk) kam hota hai."
+  },
+  "Record cleanliness": {
+    en: "Measures how accurately your voice logs were converted without unresolved warnings.",
+    hi: "Khatabook mein koi pending warning na hona zaroori hai."
+  }
+};
 
 // --- Score Arc SVG Component ---
 function ScoreArc({ score, size = 200, strokeWidth = 14 }: { score: number; size?: number; strokeWidth?: number }) {
@@ -72,18 +95,56 @@ export function MiniScoreArc({ score, size = 40 }: { score: number; size?: numbe
 
 // --- Criteria Progress Bar ---
 function CriterionRow({ criterion }: { criterion: any }) {
+  const [showInfo, setShowInfo] = useState(false);
+  const [lang, setLang] = useState<'en' | 'hi'>('en');
+
   const ratio = criterion.points_earned / criterion.points_max;
   const barColor = ratio >= 0.8 ? 'bg-[#008080]' : ratio >= 0.5 ? 'bg-amber-400' : 'bg-rose-400';
+  const infoData = CRITERION_INFO[criterion.name];
 
   return (
     <div className='space-y-2'>
       <div className='flex items-center justify-between'>
-        <span className='text-sm font-bold text-[#333333]'>{criterion.name}</span>
+        <div className='flex items-center gap-2'>
+          <span className='text-sm font-bold text-[#333333]'>{criterion.name}</span>
+          {infoData && (
+            <button
+              onClick={() => setShowInfo(!showInfo)}
+              className='text-slate-400 hover:text-[#008080] transition-colors p-1 -m-1'
+            >
+              <Info size={14} />
+            </button>
+          )}
+        </div>
         <span className='text-xs font-black text-slate-500'>
           {criterion.points_earned} / {criterion.points_max} pts
         </span>
       </div>
-      <div className='h-2 w-full bg-slate-100 rounded-full overflow-hidden'>
+
+      <AnimatePresence>
+        {showInfo && infoData && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: 8 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            className='bg-slate-50 border border-slate-100 p-3 rounded-xl flex items-start gap-3 overflow-hidden'
+          >
+             <p className='text-xs text-slate-600 flex-1 leading-relaxed font-medium'>
+               {infoData[lang]}
+             </p>
+             <button
+               onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
+               className='bg-[#008080]/10 text-[#008080] p-1.5 rounded-lg hover:bg-[#008080]/20 transition-colors shrink-0 flex items-center gap-1 font-bold text-[10px]'
+               title='Translate'
+             >
+               <Languages size={12} />
+               {lang === 'en' ? 'A/अ' : 'EN'}
+             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className='h-2 w-full bg-slate-100 rounded-full overflow-hidden mt-2'>
         <motion.div
           className={`h-full rounded-full ${barColor}`}
           initial={{ width: 0 }}
@@ -91,7 +152,7 @@ function CriterionRow({ criterion }: { criterion: any }) {
           transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
         />
       </div>
-      <div className='flex items-center justify-between'>
+      <div className='flex items-center justify-between mt-1'>
         <span className='text-[10px] font-bold text-[#008080] uppercase tracking-wider'>
           {criterion.status}
         </span>
@@ -104,6 +165,7 @@ function CriterionRow({ criterion }: { criterion: any }) {
     </div>
   );
 }
+
 
 
 // --- Main Component ---
