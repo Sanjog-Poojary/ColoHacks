@@ -34,6 +34,12 @@ def _resolve_unit(item_name: str, ledger_unit: str | None) -> str:
     if ledger_unit and ledger_unit.strip():
         return ledger_unit.strip()
     lower = item_name.lower()
+    # 1. Try exact word match for more accuracy
+    import re
+    for key, unit in KNOWN_UNITS.items():
+        if re.search(rf'\b{key}\b', lower):
+            return unit
+    # 2. Fallback to substring if no word boundary found
     for key, unit in KNOWN_UNITS.items():
         if key in lower:
             return unit

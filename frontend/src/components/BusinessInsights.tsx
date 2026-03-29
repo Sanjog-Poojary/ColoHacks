@@ -10,7 +10,7 @@ import {
   Tooltip, ResponsiveContainer, ReferenceArea 
 } from 'recharts';
 
-export default function BusinessInsights({ data, title }: { data: any; title?: string }) {
+export default function BusinessInsights({ data, title, onRefresh }: { data: any; title?: string; onRefresh?: () => void }) {
   // 1. Loading State (Skeleton)
   if (!data || data.loading) {
     return (
@@ -98,9 +98,19 @@ export default function BusinessInsights({ data, title }: { data: any; title?: s
           <div>
             <h2 className='text-2xl md:text-3xl font-black text-[#333333] uppercase tracking-tight leading-none'>{title || 'Business'} Insights</h2>
             <div className='flex items-center gap-2 mt-1.5'>
-               <p className='text-[10px] md:text-xs text-slate-500 font-bold uppercase tracking-wider'>Powered by Local AI Analytics</p>
+               <p className='text-[10px] md:text-xs text-slate-500 font-bold uppercase tracking-wider'>Driven by Fuzzy Logic & Pattern Intelligence</p>
                {computedTime && (
-                 <span className='text-[10px] text-slate-400 font-medium italic border-l border-slate-200 pl-2'>Last updated {computedTime}</span>
+                 <div className='flex items-center gap-2'>
+                    <span className='text-[10px] text-slate-400 font-medium italic border-l border-slate-200 pl-2'>Last updated {computedTime}</span>
+                    {onRefresh && (
+                      <button 
+                        onClick={onRefresh}
+                        className='text-[10px] font-black uppercase text-[#008080] hover:underline flex items-center gap-1 ml-1'
+                      >
+                        <TrendingUp size={10} /> Recalculate
+                      </button>
+                    )}
+                 </div>
                )}
             </div>
           </div>
@@ -287,8 +297,8 @@ export default function BusinessInsights({ data, title }: { data: any; title?: s
              icon={<CheckCircle2 className='text-emerald-500' size={18} />} 
            />
            <SmallInsightCard 
-             title='Analytics' 
-             value='Local ML' 
+             title='Engine' 
+             value='Fuzzy Matching' 
              icon={<MoreHorizontal className='text-slate-400' size={18} />} 
            />
         </div>

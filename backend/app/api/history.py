@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Depends, Header
+from fastapi import APIRouter, HTTPException, Query, Depends, Header, BackgroundTasks
 from pydantic import BaseModel
 from app.lib.firebase_admin import db
 from google.cloud.firestore_v1 import query as firestore_query
@@ -147,7 +147,7 @@ class ResolveRequest(BaseModel):
 
 
 @router.patch('/ledger/{entry_id}')
-async def resolve_flag(entry_id: str, req: ResolveRequest, user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
+async def resolve_flag(entry_id: str, req: ResolveRequest, bg_tasks: BackgroundTasks, user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
     """
     Resolves discrepancies in a ledger entry.
     > [!NOTE]
@@ -156,6 +156,8 @@ async def resolve_flag(entry_id: str, req: ResolveRequest, user: dict = Depends(
     > - **Scenario B**: Manual index-based flag removal.
     """
     try:
+        from app.lib.cache import invalidate_health_cache, invalidate_insights_cache
+
         uid = user['uid']
         doc_ref = db.collection('ledger').document(entry_id)
         doc = doc_ref.get()
@@ -171,6 +173,8 @@ async def resolve_flag(entry_id: str, req: ResolveRequest, user: dict = Depends(
             new_entry = req.ledger_entry
             new_entry['flags'] = [] # Clear all flags once user clarifies
             doc_ref.update({'ledger_entry': new_entry})
+            bg_tasks.add_task(invalidate_health_cache, x_shop_id)
+            bg_tasks.add_task(invalidate_insights_cache, x_shop_id)
             return {'message': 'Entry updated and flags cleared'}
 
         # Scenario B: Manual Resolve by index (Old Flow)
@@ -179,6 +183,8 @@ async def resolve_flag(entry_id: str, req: ResolveRequest, user: dict = Depends(
             if 0 <= req.flag_index < len(flags):
                 flags.pop(req.flag_index)
                 doc_ref.update({'ledger_entry': data['ledger_entry']})
+                bg_tasks.add_task(invalidate_health_cache, x_shop_id)
+                bg_tasks.add_task(invalidate_insights_cache, x_shop_id)
                 return {'message': 'Flag resolved'}
         
         return {'message': 'No changes made'}

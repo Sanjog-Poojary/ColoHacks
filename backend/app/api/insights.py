@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.get('/insights')
-async def get_insights(user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
+async def get_insights(refresh: bool = False, user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
     """
     Retrieves business insights using a 100% local ML engine.
     > [!IMPORTANT]
@@ -22,14 +22,17 @@ async def get_insights(user: dict = Depends(get_current_user), x_shop_id: str = 
     try:
         # 1. Check Cache
         cache_ref = db.collection('shops').document(x_shop_id).collection('insights').document('latest')
-        cache_doc = cache_ref.get()
         
-        if cache_doc.exists:
-            cache_data = cache_doc.to_dict()
-            computed_at = datetime.datetime.fromisoformat(cache_data['computed_at'])
-            if (datetime.datetime.now() - computed_at).total_seconds() < (6 * 3600):
-                logger.info(f"Serving cached insights for shop {x_shop_id}")
-                return cache_data['result']
+        if not refresh:
+            cache_doc = cache_ref.get()
+            if cache_doc.exists:
+                cache_data = cache_doc.to_dict()
+                computed_at = datetime.datetime.fromisoformat(cache_data['computed_at'])
+                if (datetime.datetime.now() - computed_at).total_seconds() < (6 * 3600):
+                    logger.info(f"Serving cached insights for shop {x_shop_id}")
+                    return cache_data['result']
+        else:
+            logger.info(f"Forced refresh of insights for shop {x_shop_id}")
 
         # 2. Fetch Data
         df = await fetch_vendor_entries(x_shop_id)
