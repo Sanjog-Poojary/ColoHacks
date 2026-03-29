@@ -2,7 +2,7 @@
 **Version:** 1.0  
 **Team:** [Your Team Name]  
 **Last Updated:** 2026-03-28  
-**Status:** Feature Alpha (Confidence Flags Implemented) ✅  
+**Status:** Feature Beta (Financial Health Score Implemented) ✅  
 **SDG Alignment:** SDG 8 (Decent Work & Economic Growth) · SDG 1 (No Poverty)
 
 ---
@@ -36,7 +36,8 @@ VyapaarVaani is an AI-powered voice ledger. A vendor speaks freely about their d
 | Voice input works end-to-end | Transcript accuracy on Hinglish audio | ≥ 85% word accuracy |
 | Entity extraction is reliable | Ledger entries with ≥1 item extracted | ≥ 90% of valid recordings |
 | No data is silently dropped | Flagged ambiguous entries shown to user | 100% of uncertain extractions flagged |
-| PDF is credible for loan use | Single-page income statement renderable | Working in Phase 2 |
+| Health Score works end-to-end | 5-criterion scoring engine (0-100) | Implementation Ready |
+| PDF is credible for loan use | Professional Financial Profile Export | Working in Phase 2 |
 | Patterns are useful after a week | Pattern insight generated after 4 days of data | Working in Phase 3 |
 
 ---
@@ -194,18 +195,19 @@ Transcript:
 
 ---
 
-#### F4 — PDF Income Statement Export
+#### F4 — Financial Profile (PDF Export)
 
-**Description:** User can export a weekly or monthly income statement as a 1-page PDF using jsPDF. This is the "loan-ready" document.
+**Description:** User can export a professional business health profile as a 1-page PDF using jsPDF. This replaces the standard "Income Statement" with a more holistic view for PM SVANidhi.
 
 **Acceptance Criteria:**
-- [ ] Export button visible on summary screen
-- [ ] PDF contains: vendor name, date range, total earnings, total expenses, net income, items sold breakdown, disclaimer line
-- [ ] Plain language, no jargon — readable by a bank officer or NGO worker
-- [ ] Generated entirely client-side with jsPDF
-- [ ] File name: `VyapaarVaani_Income_{YYYY-MM}.pdf`
+- [x] Export button visible on Financial Health screen
+- [x] PDF contains: vendor name, business type, city, 0-100 score, tier, 5-criterion breakdown table, loan estimate (if score > 45), resources (PM SVANidhi), disclaimer
+- [x] Generated entirely client-side with jsPDF
+- [x] File name: `VoiceTrace_HealthProfile_{Vendor}_{YYYY-MM}.pdf`
 
-**jsPDF structure:**
+**API Implementation:**
+- Integrated with `HealthExport.tsx` component.
+
 ```
 [VyapaarVaani Logo]                    [Date range]
 
@@ -297,6 +299,27 @@ def detect_patterns(entries: list[dict]) -> list[str]:
 ---
 
 ### 5.3 Optional / Stretch Features (Phase 4)
+
+#### F10 — Financial Health Score (PM SVANidhi Readiness)
+
+**Description:** A proprietary scoring engine that evaluates vendor creditworthiness across 5 criteria: History, Earnings Consistency, Expense Stability, Diversification, and Record Cleanliness.
+
+**Acceptance Criteria:**
+- [x] Scoring algorithm (0-100) implemented in `financial_health.py`
+- [x] 12-hour compute cache in Firestore to minimize database load
+- [x] Score visualization (SVG Arc) with color-coded tiers (Excellent/Good/Building/Early)
+- [x] Loan estimate calculation (3x monthly average income)
+- [x] Actionable "What to Improve" tips surfaced for scores < 80
+- [x] Real-time widget on Home screen for quick check
+
+**Criteria Weights:**
+- Business History (40 pts)
+- Earnings Consistency (25 pts)
+- Expense Stability (15 pts)
+- Diversification (10 pts)
+- Record Cleanliness (10 pts)
+
+---
 
 #### F7 — Confidence Flags & Clarification
 

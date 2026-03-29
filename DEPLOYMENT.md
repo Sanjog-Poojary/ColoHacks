@@ -79,5 +79,19 @@ firebase deploy --only hosting
 | `GROQ_API_KEY` | Groq RAM | Used for Llama 3.3 entity extraction. |
 | `VITE_API_BASE_URL` | Cloud Run URL | The endpoint for your deployed backend. |
 
+---
+
+## 5. Caching & Performance
+
+| Feature | Strategy | Duration |
+|---------|----------|----------|
+| ML Insights | Firestore Cache | 6 Hours |
+| Health Score | Firestore Cache | 12 Hours |
+
+> [!NOTE]
+> The Financial Health Score is recomputed automatically when a new ledger entry is saved via a background task in `api/ingest.py`.
+
+---
+
 > [!TIP]
 > Always use `https` for the API URL in production to avoid mixed content errors.

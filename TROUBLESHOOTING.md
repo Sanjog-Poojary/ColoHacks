@@ -58,7 +58,23 @@ This guide helps diagnose and resolve common development and production issues.
 
 ---
 
-## 4. Useful Commands for Debugging
+## 4. Financial Health Score
+
+### 4.1 Score is 0 or "No Data"
+- **Cause**: The vendor has not recorded any ledger entries yet, or entries lack earnings/items.
+- **Solution**: 
+  - Record at least one voice entry with sales data.
+  - Verify the `ledger` collection in Firestore contains documents for the `activeShopId`.
+
+### 4.2 Score doesn't update immediately
+- **Cause**: The 12-hour compute cache is active.
+- **Solution**: 
+  - Recording a new entry triggers a background cache invalidation.
+  - For manual override, delete the document in `shops/{shop_id}/insights/health_score`.
+
+---
+
+## 5. Useful Commands for Debugging
 
 | Command | Purpose |
 |---------|---------|
