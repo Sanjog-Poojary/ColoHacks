@@ -12,7 +12,7 @@ export default function ExportButton({ data }: { data: any }) {
     doc.text('Date: ' + new Date().toLocaleDateString(), 14, 30);
     
     const tableData = data.ledger_entry.items_sold.map((it: any) => [
-      it.name, it.qty, '₹' + it.price, '₹' + (it.qty * it.price)
+      it.name, it.qty, 'Rs. ' + it.price, 'Rs. ' + (it.qty * it.price)
     ]);
 
     autoTable(doc, {
@@ -25,7 +25,7 @@ export default function ExportButton({ data }: { data: any }) {
 
     const finalY = (doc as any).lastAutoTable.finalY || 40;
     doc.setFontSize(14);
-    doc.text('Total Earnings: ₹' + data.ledger_entry.earnings, 14, finalY + 15);
+    doc.text('Total Earnings: Rs. ' + data.ledger_entry.earnings, 14, finalY + 15);
 
     doc.save('VyapaarVaani_Ledger_' + new Date().getTime() + '.pdf');
   };

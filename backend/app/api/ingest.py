@@ -29,18 +29,22 @@ Your job has two layers:
 2. Cross-check each extracted entity against their business context.
 
 Validation rules:
-- If an item sold does not belong to the vendor's business type, mark it as ANOMALOUS. (e.g., Selling "Laptop" in a "Fruit Shop")
+- CRITICAL INPUT SANITIZATION: An item name MUST be a concrete noun or product (e.g., Apple, Shirt, Tea) that logically BELONGS to the vendor's business type. 
+- You must completely REJECT and IGNORE vague words, numbers (e.g., "four", "chaar"), or pronouns (e.g., "kuch"). Do not add them to `items_sold`. Instead, add an object to `flags` like `{"field": "vague_input", "reason": "Ignored vague item"}`.
+- If an item is completely unrelated to the business type (e.g., Selling "Chair" or "Laptop" in a "Fruit Shop"), you MUST REJECT it. Do not add it to `items_sold`. Instead, add an object to `flags` like `{"field": "unrelated_item", "reason": "Ignored unrelated item: [Item]"}`.
 - If an expense is plausible for their business (raw materials, transport, packaging, rent, labour), accept it.
-- If an expense seems completely unrelated to their business type, flag it for confirmation.
-- Never silently drop data. Anomalous data is still recorded — just tagged differently.
-- Do not hallucinate items or numbers. If something was not mentioned, do not add it.
+- If an expense seems completely unrelated to their business type, do not add it and flag it: `{"field": "unrelated_expense", "reason": "Ignored unrelated expense: [Expense]"}`.
+- If the vendor uses uncertain language (e.g., "shayad", "maybe", "I guess", "around", "lagbhag", "I think") about an item, quantity, or price, you MUST add a flag to the `flags` array with `{"field": "[Item Name]", "reason": "Uncertainty detected in voice note."}`.
+- Do not hallucinate items or numbers. If something was not mentioned or is rejected by the above rules, do not add it.
+- If no valid items or expenses remain after sanitization, return empty arrays.
 - CRITICAL: You MUST do all math calculations yourself and output ONLY the final computed float/integer. Never output mathematical expressions like `20 * 40` inside JSON values.
+- CRITICAL PDF REQUIREMENT: You MUST translate ALL extracted item names and expense labels into standard English (e.g., output "Apple" instead of "Seb", "Chair" instead of "Kursi"). NEVER include Hindi, regional, or non-Latin text in the JSON strings, as this corrupts PDF generation.
 
 Always respond with valid JSON only. No explanation. No markdown fences.
 Expected JSON:
 {
-  "items_sold": [{"name": string, "qty": number, "price": number, "is_anomalous": boolean}],
-  "expenses": [{"label": string, "amount": number, "is_anomalous": boolean}],
+  "items_sold": [{"name": string, "qty": number, "price": number}],
+  "expenses": [{"label": string, "amount": number}],
   "earnings": number,
   "flags": [{"field": string, "reason": string}]
 }
@@ -114,8 +118,9 @@ async def ingest_audio(
         has_items = len(ledger_entry.get('items_sold', [])) > 0
         has_expenses = len(ledger_entry.get('expenses', [])) > 0
         has_earnings = ledger_entry.get('earnings', 0) > 0
+        has_flags = len(ledger_entry.get('flags', [])) > 0
         
-        if not (has_items or has_expenses or has_earnings):
+        if not (has_items or has_expenses or has_earnings or has_flags):
             logger.warning("Meaningless transcript detected. Aborting save.")
             raise HTTPException(status_code=400, detail="No business data found. Please try again.")
 

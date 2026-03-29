@@ -150,6 +150,13 @@ export default function ClarificationDialog({ entry, onClose }: ClarificationPro
                   </div>
                 );
               })}
+
+              <button
+                onClick={() => setEditedEntry({ ...editedEntry, items_sold: [...editedEntry.items_sold, { name: '', qty: '', price: '' }] })}
+                className='w-full py-4 rounded-3xl border-2 border-dashed border-[#008080]/30 text-[#008080] font-bold text-sm hover:bg-[#008080]/5 transition-all'
+              >
+                + Add Missing Item
+              </button>
             </div>
           </div>
         </div>

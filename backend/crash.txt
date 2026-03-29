@@ -1,23 +1,4 @@
 Traceback (most recent call last):
-  File "C:\Users\Sanjog\Downloads\ColoHacks\backend\app\api\ingest.py", line 100, in ingest_audio
-    completion = groq_client.chat.completions.create(
-        model='llama-3.3-70b-versatile',
-    ...<4 lines>...
-        response_format={'type': 'json_object'},
-    )
-  File "C:\Users\Sanjog\AppData\Local\Programs\Python\Python314\Lib\site-packages\groq\resources\chat\completions.py", line 461, in create
-    return self._post(
-           ~~~~~~~~~~^
-        "/openai/v1/chat/completions",
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<45 lines>...
-        stream_cls=Stream[ChatCompletionChunk],
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "C:\Users\Sanjog\AppData\Local\Programs\Python\Python314\Lib\site-packages\groq\_base_client.py", line 1280, in post
-    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
-                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Sanjog\AppData\Local\Programs\Python\Python314\Lib\site-packages\groq\_base_client.py", line 1067, in request
-    raise self._make_status_error_from_response(err.response) from None
-groq.BadRequestError: Error code: 400 - {'error': {'message': "Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.", 'type': 'invalid_request_error', 'code': 'json_validate_failed', 'failed_generation': '{\n  "items_sold": [\n       {"name": "mango", "qty": 20, "price": 40, "is_anomalous": false},\n       {"name": "potato", "qty": 20, "price": 15, "is_anomalous": false}\n   ],\n   "expenses": [],\n   "earnings": 20 * 40 + 20 * 15,\n   "flags": []\n}'}}
+  File "C:\Users\Sanjog\Downloads\ColoHacks\backend\app\api\ingest.py", line 123, in ingest_audio
+    raise HTTPException(status_code=400, detail="No business data found. Please try again.")
+fastapi.exceptions.HTTPException: 400: No business data found. Please try again.
