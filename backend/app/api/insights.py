@@ -8,6 +8,7 @@ from app.ml.data_fetcher import fetch_vendor_entries
 from app.ml.revenue_trend import compute_revenue_trend
 from app.ml.top_items import compute_top_items
 from app.ml.stock_suggestion import compute_stock_suggestions
+from app.ml.business_truth import generate_business_insights
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -58,6 +59,9 @@ async def get_insights(refresh: bool = False, user: dict = Depends(get_current_u
             revenue_task, top_items_task, stock_task
         )
         
+        # 4. Generate Business Truth (Plain-language observations)
+        observations = generate_business_insights(df)
+        
         # 4. Calculate Aggregate Confidence Score (0-100)
         # R2 score (0 to 1) + Data quantity weight
         r2 = revenue_trend.get('confidence', 0)
@@ -73,6 +77,7 @@ async def get_insights(refresh: bool = False, user: dict = Depends(get_current_u
             "revenue_trend": revenue_trend,
             "top_items": top_items,
             "stock_suggestions": stock_suggestions,
+            "observations": observations,
             "trend_direction": revenue_trend.get('trend_direction', 'stable'),
             "confidence_score": confidence_score,
             "days_recorded": len(df),

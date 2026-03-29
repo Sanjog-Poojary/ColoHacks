@@ -234,6 +234,35 @@ export default function BusinessInsights({ data, title, onRefresh }: { data: any
         </motion.div>
       </div>
 
+      {/* NEW: Business Observations (The Truth) */}
+      {data.observations && data.observations.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className='bg-gradient-to-br from-[#008080] to-[#20B2AA] p-8 md:p-12 rounded-[3rem] text-[#FFFFF0] shadow-2xl relative overflow-hidden'
+        >
+           {/* Decorative elements */}
+           <div className='absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl' />
+           <div className='absolute -bottom-10 -left-10 w-60 h-60 bg-white/5 rounded-full blur-3xl' />
+
+           <div className='relative z-10 flex flex-col md:flex-row items-center gap-8'>
+              <div className='bg-white/20 p-6 rounded-3xl backdrop-blur-sm border border-white/20'>
+                 <Sparkles className='text-amber-300' size={48} />
+              </div>
+              <div className='space-y-4 text-center md:text-left'>
+                 <div className='inline-block bg-white/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-2'>The Ground Truth</div>
+                 <h3 className='text-2xl md:text-3xl font-black italic uppercase leading-none'>Today's Insights</h3>
+                 <div className='space-y-2 max-w-2xl'>
+                    {data.observations.map((obs: string, idx: number) => (
+                      <p key={idx} className='text-sm md:text-lg font-medium border-l-2 border-amber-300/50 pl-4 py-1 italic'>
+                        "{obs}"
+                      </p>
+                    ))}
+                 </div>
+              </div>
+           </div>
+        </motion.div>
+      )}
+
       {/* Stock Suggestions */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8'>
         {/* Inventory Strategy */}
