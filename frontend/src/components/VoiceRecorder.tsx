@@ -65,10 +65,14 @@ export default function VoiceRecorder({ onResult, onStart, activeShopId }: { onR
         }
 
         const formData = new FormData();
-        formData.append('file', blob);
+        // Give the file a name to help the backend with extension/mime detection
+        formData.append('file', blob, 'recording.webm');
         try {
-          const res = await api.post('/ingest', formData);
+          const res = await api.post('/ingest', formData, {
+            headers: { 'X-Shop-Id': activeShopId }
+          });
           onResult(res.data);
+
         } catch (err: any) { 
           console.error('Upload failed', err);
           setError(err.response?.data?.detail || 'Failed to process audio. Please try again.');

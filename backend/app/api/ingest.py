@@ -37,6 +37,20 @@ Validation rules:
 - If the vendor uses uncertain language (e.g., "shayad", "maybe", "I guess", "around", "lagbhag", "I think") about an item, quantity, or price, you MUST add a flag to the `flags` array with `{"field": "[Item Name]", "reason": "Uncertainty detected in voice note."}`.
 - Do not hallucinate items or numbers. If something was not mentioned or is rejected by the above rules, do not add it.
 - If no valid items or expenses remain after sanitization, return empty arrays.
+- CRITICAL MATH & PRICING RULE: You must intelligently decide if a mentioned number is a **Unit Price** or a **Total Price**. 
+  - Shorthand like "50 aam 50 me" (50 mangoes for 50) is highly ambiguous. 
+  - RULE 1: Use Indian Market Price Realism. Common unit prices for items:
+    - Fruits (Mango, Apple, Grapes): ₹40 - ₹250 per unit/kg.
+    - Veggies (Tomato, Onion, Potato): ₹20 - ₹80 per kg.
+    - Clothing (Shirt, Pants): ₹200 - ₹2000 per unit.
+    - Tea/Snacks: ₹5 - ₹50 per unit.
+  - RULE 2: If selecting a number as the **Total** results in a Unit Price that is absurdly low (e.g., ₹1 for a Mango), you MUST treat the number as the **Unit Price** instead and calculate the total. **This is your default decision path.**
+  - RULE 3: Even after choosing the realistic Unit Price via Rule 2, if the user's phrasing was still ambiguous ("X for Y"), you MUST still output a flag in the `flags` array with `{"field": "[Item]", "reason": "Ambiguous price detected. Assumed ₹50 each based on market value. Correct if it was intended as total."}`.
+  - ALWAYS sum your extracted (`qty` * `price`) to define the final `earnings`. The `earnings` field MUST perfectly match the items sold.
+
+- EXAMPLES:
+  - Input: "50 mangoes 50 rupees." -> Result: `items_sold`: `[{"name": "Mango", "qty": 50, "price": 50}]`, `earnings`: 2500. (Since ₹1 is impossible for Mango).
+  - Input: "20 chai 100 me bechi." -> Result: `items_sold`: `[{"name": "Tea", "qty": 20, "price": 5}]`, `earnings`: 100. (Since ₹5 for tea is a standard market price).
 - CRITICAL: You MUST do all math calculations yourself and output ONLY the final computed float/integer. Never output mathematical expressions like `20 * 40` inside JSON values.
 - CRITICAL PDF REQUIREMENT: You MUST translate ALL extracted item names and expense labels into standard English (e.g., output "Apple" instead of "Seb", "Chair" instead of "Kursi"). NEVER include Hindi, regional, or non-Latin text in the JSON strings, as this corrupts PDF generation.
 
@@ -114,15 +128,16 @@ async def ingest_audio(
         )
         ledger_entry = json.loads(completion.choices[0].message.content)
 
-        # 5. ghost prevention (Tier 2)
+        # 5. ghost prevention (Tier 2) - now relaxed
         has_items = len(ledger_entry.get('items_sold', [])) > 0
         has_expenses = len(ledger_entry.get('expenses', [])) > 0
         has_earnings = ledger_entry.get('earnings', 0) > 0
-        has_flags = len(ledger_entry.get('flags', [])) > 0
         
-        if not (has_items or has_expenses or has_earnings or has_flags):
-            logger.warning("Meaningless transcript detected. Aborting save.")
-            raise HTTPException(status_code=400, detail="No business data found. Please try again.")
+        if not (has_items or has_expenses or has_earnings):
+            logger.warning("No business data found. Returning transcript only.")
+            if 'flags' not in ledger_entry: ledger_entry['flags'] = []
+            ledger_entry['flags'].append({"field": "general", "reason": "No business data found in recording."})
+
 
         # 6. Persistence
         entry_data = {
@@ -138,8 +153,10 @@ async def ingest_audio(
         entry_id = doc_ref_tuple[1].id
         logger.info(f'Ledger entry saved: {entry_id}')
 
-        # 7. Invalidate health score cache in background
+        # 7. Invalidate caches in background
+        from app.lib.cache import invalidate_health_cache, invalidate_insights_cache
         background_tasks.add_task(invalidate_health_cache, x_shop_id)
+        background_tasks.add_task(invalidate_insights_cache, x_shop_id)
 
         return {'id': entry_id, 'transcript': transcript, 'ledger_entry': ledger_entry}
 

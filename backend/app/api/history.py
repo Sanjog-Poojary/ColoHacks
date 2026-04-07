@@ -1,18 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, Depends, Header, BackgroundTasks
 from pydantic import BaseModel
-from app.lib.firebase_admin import db
-from google.cloud.firestore_v1 import query as firestore_query
-from app.lib.auth_middleware import get_current_user
-from groq import Groq
-import os, json, logging, datetime
-from dotenv import load_dotenv
-
-load_dotenv()
-logger = logging.getLogger(__name__)
-router = APIRouter()
-groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
-from fastapi import APIRouter, HTTPException, Query, Depends, Header
-from pydantic import BaseModel
+from typing import Optional
 from app.lib.firebase_admin import db
 from google.cloud.firestore_v1 import query as firestore_query
 from app.lib.auth_middleware import get_current_user
@@ -33,12 +21,12 @@ class TranslateRequest(BaseModel):
 @router.get('/ledger')
 async def get_ledger(user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
     """
-    Retrieves the last 7 days of ledger history for a specific shop.
-    Supports manual filtering and sorting to minimize Firestore index requirements.
+    Retrieves the ledger history for a specific shop.
+    Returns all records for the shop, handles legacy records with missing UIDs.
     """
     try:
         uid = user['uid']
-        seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
+        # Filter by shop_id first
         docs = (
             db.collection('ledger')
             .where('shop_id', '==', x_shop_id)
@@ -48,17 +36,16 @@ async def get_ledger(user: dict = Depends(get_current_user), x_shop_id: str = He
         for doc in docs:
             data = doc.to_dict()
             
-            # Manual date filtering
-            dt_str = data.get('createdAt')
-            if not dt_str: continue
-            
-            dt = datetime.datetime.fromisoformat(dt_str)
-            if dt < seven_days_ago: continue
-            
+            # Security: Only show records that belong to this user
+            # Handle legacy records (where uid might be None) by allowing them if they match shop_id
+            record_uid = data.get('uid')
+            if record_uid and record_uid != uid:
+                continue # Belongs to someone else
+                
             data['id'] = doc.id
             history.append(data)
         
-        # Sort manually to avoid needing a Firestore composite index
+        # Sort manually by createdAt (newest first)
         history.sort(key=lambda x: x.get('createdAt', ''), reverse=True)
         return history
     except Exception as e:
@@ -67,93 +54,14 @@ async def get_ledger(user: dict = Depends(get_current_user), x_shop_id: str = He
 
 
 @router.delete('/ledger/{entry_id}')
-async def delete_entry(entry_id: str, user: dict = Depends(get_current_user)):
+async def delete_entry(
+    entry_id: str, 
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(get_current_user), 
+    x_shop_id: str = Header(...)
+):
     """
     Deletes a specific ledger entry after verifying user ownership.
-    """
-    try:
-        uid = user['uid']
-        doc_ref = db.collection('ledger').document(entry_id)
-        doc = doc_ref.get()
-        if not doc.exists:
-            raise HTTPException(status_code=404, detail='Entry not found')
-        
-        data = doc.to_dict()
-        # If the document has a UID, ensure it strictly matches the current user.
-        # If the document lacks a UID entirely (e.g. historical seeded demo data), allow the deletion.
-        doc_uid = data.get('uid')
-        if doc_uid and doc_uid != uid:
-            raise HTTPException(status_code=403, detail='Permission denied')
-            
-        doc_ref.delete()
-        return {'message': 'Entry deleted successfully'}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f'Delete error: {str(e)}', exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post('/translate')
-async def translate_text(req: TranslateRequest, user: dict = Depends(get_current_user)):
-    """
-    Translates Hinglish voice notes into professional business English using Llama 3.3.
-    Uses strict rules to distinguish between currency amounts and item counts.
-    > [!IMPORTANT]
-    > The model is instructed to treat 'Jama' as 'Credit' and 'Udhaar/Naave' as 'Debit'.
-    """
-    try:
-        if not req.text.strip():
-            return {'translated': ''}
-            
-        completion = groq_client.chat.completions.create(
-            model='llama-3.3-70b-versatile',
-            messages=[{
-                'role': 'system',
-                'content': (
-                    'You are an expert financial translator for VyapaarVaani, '
-                    'a business ledger app for small Indian shops. '
-                    'Translate Hinglish/Hindi narration into professional English business entries.\n\n'
-                    'STRICT RULES:\n'
-                    '1. NEVER combine disparate numbers (e.g., "200 Mangoes, sold for 40" must NOT become "240 mangoes").\n'
-                    '2. Distinguish between Item Quantity and Currency Amount.\n'
-                    '3. Contextualize "Jama" as "Credit" and "Udhaar/Naave" as "Debit".\n'
-                    '4. Return ONLY the translated English sentence. No intro, no "Sure," no explanations.'
-                )
-            }, {
-                'role': 'user',
-                'content': f'Translate: {req.text}'
-            }],
-        )
-        translated = completion.choices[0].message.content.strip()
-        # Remove common model conversational prefixes if they persist
-        prefixes = ['translation:', 'here is the translation:', 'Sure, ', 'translated:']
-        for p in prefixes:
-            if translated.lower().startswith(p):
-                translated = translated[len(p):].strip()
-        
-        return {'translated': translated}
-    except Exception as e:
-        logger.error(f'Translate error: {str(e)}', exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-from pydantic import BaseModel
-from typing import Optional
-
-class ResolveRequest(BaseModel):
-    ledger_entry: Optional[dict] = None
-    flag_index: Optional[int] = None
-
-
-@router.patch('/ledger/{entry_id}')
-async def resolve_flag(entry_id: str, req: ResolveRequest, bg_tasks: BackgroundTasks, user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
-    """
-    Resolves discrepancies in a ledger entry.
-    > [!NOTE]
-    > Two flows supported:
-    > - **Scenario A**: Full ledger_entry update (clears all flags).
-    > - **Scenario B**: Manual index-based flag removal.
     """
     try:
         from app.lib.cache import invalidate_health_cache, invalidate_insights_cache
@@ -165,19 +73,82 @@ async def resolve_flag(entry_id: str, req: ResolveRequest, bg_tasks: BackgroundT
             raise HTTPException(status_code=404, detail='Entry not found')
         
         data = doc.to_dict()
-        if data.get('uid') != uid or data.get('shop_id') != x_shop_id:
-            raise HTTPException(status_code=403, detail='Permission denied')
+        record_uid = data.get('uid')
+        # Allow deletion if UID matches OR if it's a legacy record (UID is None) belonging to this shop
+        if record_uid and record_uid != uid:
+             raise HTTPException(status_code=403, detail='Permission denied')
+        
+        if data.get('shop_id') != x_shop_id:
+             raise HTTPException(status_code=403, detail='Permission denied (shop mismatch)')
+            
+        doc_ref.delete()
+        
+        # Invalidate caches
+        background_tasks.add_task(invalidate_health_cache, x_shop_id)
+        background_tasks.add_task(invalidate_insights_cache, x_shop_id)
+        
+        return {'message': 'Entry deleted successfully'}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f'Delete error: {str(e)}', exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
-        # Scenario A: Full entry update (New Flow)
+
+@router.post('/translate')
+async def translate_text(req: TranslateRequest, user: dict = Depends(get_current_user)):
+    try:
+        if not req.text.strip():
+            return {'translated': ''}
+            
+        completion = groq_client.chat.completions.create(
+            model='llama-3.3-70b-versatile',
+            messages=[{
+                'role': 'system', 'content': 'You are a financial translator. Hinglish/Hindi to business English.'
+            }, {
+                'role': 'user', 'content': f'Translate: {req.text}'
+            }],
+        )
+        translated = completion.choices[0].message.content.strip()
+        return {'translated': translated}
+    except Exception as e:
+        logger.error(f'Translate error: {str(e)}', exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class ResolveRequest(BaseModel):
+    ledger_entry: Optional[dict] = None
+    flag_index: Optional[int] = None
+
+
+@router.patch('/ledger/{entry_id}')
+async def resolve_flag(entry_id: str, req: ResolveRequest, bg_tasks: BackgroundTasks, user: dict = Depends(get_current_user), x_shop_id: str = Header(...)):
+    try:
+        from app.lib.cache import invalidate_health_cache, invalidate_insights_cache
+
+        uid = user['uid']
+        doc_ref = db.collection('ledger').document(entry_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail='Entry not found')
+        
+        data = doc.to_dict()
+        record_uid = data.get('uid')
+        if record_uid and record_uid != uid:
+            raise HTTPException(status_code=403, detail='Permission denied')
+        if data.get('shop_id') != x_shop_id:
+            raise HTTPException(status_code=403, detail='Permission denied (shop mismatch)')
+
+        # Full entry update
         if req.ledger_entry:
             new_entry = req.ledger_entry
-            new_entry['flags'] = [] # Clear all flags once user clarifies
+            new_entry['flags'] = [] 
             doc_ref.update({'ledger_entry': new_entry})
             bg_tasks.add_task(invalidate_health_cache, x_shop_id)
             bg_tasks.add_task(invalidate_insights_cache, x_shop_id)
             return {'message': 'Entry updated and flags cleared'}
 
-        # Scenario B: Manual Resolve by index (Old Flow)
+        # Manual resolve by index
         if 'ledger_entry' in data and 'flags' in data['ledger_entry'] and req.flag_index is not None:
             flags = data['ledger_entry']['flags']
             if 0 <= req.flag_index < len(flags):

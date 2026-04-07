@@ -6,9 +6,10 @@ import api from '../lib/api';
 interface ClarificationProps {
   entry: any;
   onClose: (updatedEntry?: any) => void;
+  onDelete?: (id: string) => void;
 }
 
-export default function ClarificationDialog({ entry, onClose }: ClarificationProps) {
+export default function ClarificationDialog({ entry, onClose, onDelete }: ClarificationProps) {
   const [editedEntry, setEditedEntry] = useState(JSON.parse(JSON.stringify(entry.ledger_entry)));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -25,6 +26,22 @@ export default function ClarificationDialog({ entry, onClose }: ClarificationPro
       items_sold: newItems,
       earnings: totalItems - totalExpenses 
     });
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    if (!window.confirm('Are you sure you want to discard this entry? It will be permanently removed.')) return;
+    
+    setIsSubmitting(true);
+    try {
+      await api.delete(`/ledger/${entry.id}`);
+      onDelete(entry.id);
+    } catch (err: any) {
+      console.error('Delete failed:', err.message);
+      alert('Failed to delete entry.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -168,6 +185,15 @@ export default function ClarificationDialog({ entry, onClose }: ClarificationPro
             <p className='text-3xl font-black text-[#008080] font-mono leading-none mt-1'>₹{editedEntry.earnings}</p>
           </div>
           <div className='flex gap-3'>
+            {onDelete && (
+              <button 
+                onClick={handleDelete}
+                disabled={isSubmitting}
+                className='px-6 py-4 rounded-2xl bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-all text-sm border border-red-100'
+              >
+                Discard
+              </button>
+            )}
             <button 
               onClick={() => onClose()}
               className='px-6 py-4 rounded-2xl bg-slate-200 text-slate-600 font-bold hover:bg-slate-300 transition-all text-sm'

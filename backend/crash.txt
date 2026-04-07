@@ -1,4 +1,4 @@
 Traceback (most recent call last):
-  File "C:\Users\Sanjog\Downloads\ColoHacks\backend\app\api\ingest.py", line 123, in ingest_audio
+  File "C:\Users\Sanjog\Downloads\ColoHacks\backend\app\api\ingest.py", line 138, in ingest_audio
     raise HTTPException(status_code=400, detail="No business data found. Please try again.")
 fastapi.exceptions.HTTPException: 400: No business data found. Please try again.

@@ -106,6 +106,7 @@ function App() {
   const [pendingClarification, setPendingClarification] = useState<any>(null);
   const isOnline = useOnlineStatus();
   const [offlineSyncing, setOfflineSyncing] = useState(false);
+  const [dismissedEntryIds, setDismissedEntryIds] = useState<Set<string>>(new Set());
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -139,9 +140,9 @@ function App() {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (forceInsights = false) => {
     if (!user || !activeShopId) return;
-    setInsightsData(null); // Clear stale data to show loading state
+    
     try {
       // Always fetch history 
       const histRes = await api.get(`/ledger`, {
@@ -149,7 +150,8 @@ function App() {
       });
       setHistory(histRes.data);
 
-      if (view === 'insights') {
+      if (view === 'insights' || forceInsights) {
+        setInsightsData(null); // Clear to show loading state
         const insRes = await api.get(`/insights`, {
           headers: { 'X-Shop-Id': activeShopId }
         });
@@ -173,12 +175,24 @@ function App() {
   // Scan for pending flags on startup or history update
   useEffect(() => {
     if (history.length > 0 && !pendingClarification) {
-      const flagged = history.find(entry => entry.ledger_entry.flags && entry.ledger_entry.flags.length > 0);
+      const flagged = history.find(entry => {
+        // Only show if it has flags AND it has not been dismissed this session
+        const hasFlags = entry.ledger_entry.flags && entry.ledger_entry.flags.length > 0;
+        const isDismissed = dismissedEntryIds.has(entry.id);
+        
+        // Filter out "ghost" records (no items or expenses) from auto-pop
+        const hasItems = entry.ledger_entry.items_sold?.length > 0;
+        const hasExpenses = entry.ledger_entry.expenses?.length > 0;
+        const hasData = hasItems || hasExpenses;
+
+        return hasFlags && !isDismissed && hasData;
+      });
+      
       if (flagged) {
         setPendingClarification(flagged);
       }
     }
-  }, [history]);
+  }, [history, dismissedEntryIds]);
 
   useEffect(() => {
     if (activeShopId) {
@@ -232,9 +246,31 @@ function App() {
                     ? { ...e, ledger_entry: updatedEntry } 
                     : e
                 ));
+                // Refresh analytics to reflect changes
+                setHealthData(null);
+                setInsightsData(null); // Clear stale graphs instantly
+                fetchData(true);
+              } else {
+                // If skipped, add to dismissed set so it doesn't pop again immediately
+                setDismissedEntryIds(prev => new Set(prev).add(pendingClarification.id));
               }
               setPendingClarification(null);
             }} 
+            onDelete={(id) => {
+              // Remove from history and dismissed if deleted
+              setHistory(prev => prev.filter(e => e.id !== id));
+              setDismissedEntryIds(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+              });
+              
+              // Clear health score and refresh insights data
+              setHealthData(null);
+              setInsightsData(null); // Clear stale graphs instantly
+              fetchData(true);
+              setPendingClarification(null);
+            }}
           />
         )}
       </AnimatePresence>
